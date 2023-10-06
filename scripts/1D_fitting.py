@@ -1,11 +1,11 @@
 import symengine as sym
 import numpy as np
-from solve_brain import compile_hopf, solve_dde, threshold_matrix, random_initial
-
+from solve_brain.brain_models import compile_hopf, solve_dde, threshold_matrix, random_initial
+from solve_brain.brain_analysis import PLI, butter_bandpass_filter, compute_phase_coherence
 from scipy.stats import pearsonr
-from network_dynamics import PLI
-from fourier import butter_bandpass_filter
-from feedback_helpers import compute_phase_coherence
+#from network_dynamics import PLI
+#from fourier import butter_bandpass_filter
+#from feedback_helpers import compute_phase_coherence
 from tqdm import tqdm
 import pickle
 from math import pi
@@ -19,13 +19,13 @@ import pandas as pd
 np.random.seed(0)
 run = True
 # save paths
-path = './figures/1d_fitting/'
-W_path = './connectome/glioma/glioma_struct_conns_avg.p'
-exp_PLI_path = './connectome/glioma/exp_PLI_updated.p'
-freq_path = './connectome/glioma/exp_frequencies.csv'
+path = '../plots/1D_fitting/'
+W_path = '../data/glioma_struct_conns_avg.p'
+exp_PLI_path = '../data/exp_PLI_updated.p'
+freq_path = '../data/exp_frequencies.csv'
 
 # read tumor file (to fit tumor region parameters)
-tumor_indss_f = './connectome/glioma/patients_tumor_overlaps.csv'
+tumor_indss_f = '../data/patients_tumor_overlaps.csv'
 tumor_indss = pd.read_csv(tumor_indss_f, sep=';').to_numpy()
 tumor_indss = tumor_indss[:,1:]
 tumor_inds = np.array([])
@@ -36,23 +36,25 @@ tumor_inds = list(set(list(tumor_inds)))
 tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
 
 # parameters to vary
-parmin=0;parmax=30;M=200  # (100)
-ICN=50  # number of initial conditions (50)
+parmin=0;parmax=30;M=3  # (100)
+ICN=1  # number of initial conditions (50)
 
 # tumor region parameter
-h = []
-hT = sym.var('h_tumor')
-for n in range(N):
-    if n in tumor_inds:
-        h.append(hT)
-    else:
-        h.append(13.4)
+#h = []
+#hT = sym.var('h_tumor')
+#for n in range(N):
+#    if n in tumor_inds:
+#        h.append(hT)
+#    else:
+#        h.append(13.4)
 
 # ODE parameters
 kappa = 20
 decay = 14.9
-#h = 13.4
-control_pars = [hT]
+h = sym.var('h')  # uncomment for changing h
+#h = 13.4  # optimal healthy value
+#control_pars = [hT]
+control_pars = [h]
 
 # solver settings
 t_span = (0,14.5)
@@ -115,19 +117,19 @@ if run:
             coh_errors[i,j] = coherence_error
     
     # save files
-    with open(path + f'rs_{parvar}.pl', 'wb') as f:
+    with open('../simulations/1D_fitting/rs_{parvar}.pl', 'wb') as f:
         pickle.dump(rs, f)
-    with open(path + f'coh_errors_{parvar}.pl', 'wb') as f:
+    with open('../simulations/1D_fitting/coh_errors_{parvar}.pl', 'wb') as f:
         pickle.dump(coh_errors, f)
-    with open(path + f'pars_{parvar}.pl', 'wb') as f:
+    with open('../simulations/1D_fitting/pars_{parvar}.pl', 'wb') as f:
         pickle.dump(pars, f)
 
 # load files
-with open(path + f'rs_{parvar}.pl', 'rb') as f:
+with open('../simulations/1D_fitting/rs_{parvar}.pl', 'rb') as f:
     rs = pickle.load(f)
-with open(path + f'coh_errors_{parvar}.pl', 'rb') as f:
+with open('../simulations/1D_fitting/coh_errors_{parvar}.pl', 'rb') as f:
     coh_errors = pickle.load(f)
-with open(path + f'pars_{parvar}.pl', 'rb') as f:
+with open('../simulations/1D_fitting/pars_{parvar}.pl', 'rb') as f:
     pars = pickle.load(f)
 ICN,M = rs.shape
 
