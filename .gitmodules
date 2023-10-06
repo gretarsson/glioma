@@ -1,0 +1,3 @@
+[submodule "solve-brain"]
+	path = solve-brain
+	url = https://github.com/gretarsson/solve-brain.git
