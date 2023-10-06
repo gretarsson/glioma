@@ -1,6 +1,7 @@
 import symengine as sym
 import numpy as np
 from solve_brain import compile_hopf, solve_dde, threshold_matrix, random_initial
+
 from scipy.stats import pearsonr
 from network_dynamics import PLI
 from fourier import butter_bandpass_filter
