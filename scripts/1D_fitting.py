@@ -3,9 +3,6 @@ import numpy as np
 from solve_brain.brain_models import compile_hopf, solve_dde, threshold_matrix, random_initial
 from solve_brain.brain_analysis import PLI, butter_bandpass_filter, compute_phase_coherence
 from scipy.stats import pearsonr
-#from network_dynamics import PLI
-#from fourier import butter_bandpass_filter
-#from feedback_helpers import compute_phase_coherence
 from tqdm import tqdm
 import pickle
 from math import pi
