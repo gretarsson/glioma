@@ -1,3 +1,4 @@
 [submodule "solve-brain"]
 	path = scripts/solve_brain
 	url = https://github.com/gretarsson/solve-brain.git
+        ignore = dirty
