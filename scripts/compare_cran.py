@@ -9,13 +9,11 @@ import seaborn as sns
 # for average healthy and average patient functional connectivity
 # --------------------------------------------------------------
 # where to save figures
-fig_save = './figures/glioma_FINAL/CRAN_NORMAL_DIFF/'
+fig_save = '../plots/compare_cran/'
 
 # where to find craniotomoy data and control
-data_orig_path = './figures/glioma/fitting/pearson_patients/normal_big/'
-data_cran_path = './figures/glioma/fitting/pearson_patients/craniotomy_big/'
-#data_orig_path = './figures/glioma/fitting/pearson_patients/h_decay_p90/'
-#data_cran_path = './figures/glioma/fitting/pearson_patients/h_decay_p90_allT/'
+data_orig_path = '../simulations/normal_big/'
+data_cran_path = '../simulations/craniotomy_big/'
 
 # load data
 orig_healthy_pars = np.array(pickle.load( open( data_orig_path + 'healthy_pars.pl', "rb" ) ))[0]
