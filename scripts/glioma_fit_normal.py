@@ -403,111 +403,6 @@ if run:
         if plot:
             print('\nPlotting optimal experimental FC...')
             if m == 0 and p == 0:
-                figs, brain_figs = plot_functional_connectomes(mean_exp_PLI, \
-                                     coordinates=coordinates, \
-                                     region_names=region_names, regions=regions, colours=colours)
-                print('Done.')
-
-                # SAVE AND CLOSE EXP. AVG. PLI
-                figs[0].savefig(fig_save_path + f'exp_control.png', dpi=300, bbox_inches='tight')
-                brain_figs[0].savefig(fig_save_path + f'mni_exp_control.png', dpi=300)
-                plt.close(figs[0])
-
-                # PLOT STRUCTURAL CONNECTIVITY
-                print('\nPlotting SC...')
-                figs, brain_figs = plot_functional_connectomes(mean_W, coordinates=coordinates, \
-                                             region_names=region_names, regions=regions, \
-                                             colours=colours, \
-                                             edge_threshold='0.0%')
-                print('Done.')
-
-                # SAVE AND CLOSE STRUCTURAL CONNECTIVITY
-                figs[0].savefig(fig_save_path + 'structural.png', dpi=300, bbox_inches='tight')
-                brain_figs[0].savefig(fig_save_path + 'structural_mni.png', dpi=300)
-                plt.close('all')
-            if m == 0:
-                figs, brain_figs = plot_functional_connectomes(exp_PLI_p, coordinates=coordinates, \
-                                     region_names=region_names, regions=regions, colours=colours)
-                print('Done.')
-
-                # SAVE AND CLOSE EXP. AVG. PLI
-                figs[0].savefig(fig_save_path + f'exp_patient_{p}.png', dpi=300, bbox_inches='tight')
-                brain_figs[0].savefig(fig_save_path + f'mni_exp_patient_{p}.png', dpi=300)
-                plt.close(figs[0])
-            
-
-            # FIND OPTIMAL SIMULATED PLI CONTROL
-            print(f'\nSolving for optimal healthy dynamical model parameters..')
-            sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
-                 parameterss=np.array([minimize.x]), cutoff=cutoff)
-            print('Done.')
-
-            # EXTRACT SOLUTION
-            x = sol[0]['x']
-            t = sol[0]['t']
-
-            # SAMPLING RATE
-            fs = 1/(t[1]-t[0])
-
-            # BANDPASS
-            x = butter_bandpass_filter(x, band[0], band[1], fs)
-
-            # COMPUTE PLI MATRIX
-            opt_sim_PLI = PLI(x)
-
-            # PLOT OPTIMAL SIMULATED AVERAGE PLI 
-            print('\nPlotting optimal simulated FC...')
-            # MAKE TITLE
-            title = ''
-            for i, str_par in enumerate(control_pars):
-                title += f'{str_par} = {round(minimize.x[i],3)} '
-            title += f'optima = {minimize.fun}'
-            figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
-                        region_names=region_names, regions=regions, colours=colours, title=title)
-            print('Done.')
-
-            # SAVE AND CLOSE SIM. AVG. PLI
-            figs[0].savefig(fig_save_path + f'sim_run_{m}_patient_{p}_control.png', \
-                             dpi=300, bbox_inches='tight')
-            brain_figs[0].savefig(fig_save_path + f'mni_sim_run_{m}_patient_{p}_control.png', \
-                             dpi=300)
-            plt.close('all')
-
-            # FIND OPTIMAL SIMULATED PLI CONTROL
-            print(f'\nSolving for optimal patient dynamical model parameters..')
-            sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
-                 parameterss=np.array([minimize_p.x]), cutoff=cutoff)
-            print('Done.')
-
-            # EXTRACT SOLUTION
-            x = sol[0]['x']
-            t = sol[0]['t']
-
-            # SAMPLING RATE
-            fs = 1/(t[1]-t[0])
-
-            # BANDPASS
-            x = butter_bandpass_filter(x, band[0], band[1], fs)
-
-            # COMPUTE PLI MATRIX
-            opt_sim_PLI = PLI(x)
-
-            # PLOT OPTIMAL SIMULATED AVERAGE PLI PATIENT P 
-            print('\nPlotting optimal patient simulated FC...')
-            # MAKE TITLE
-            title = ''
-            for i, str_par in enumerate(control_pars):
-                title += f'{str_par} = {round(minimize_p.x[i],3)} '
-            title += f'optima = {minimize_p.fun}'
-            figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
-                            region_names=region_names, regions=regions, colours=colours, title=title)
-            print('Done.')
-
-            # SAVE AND CLOSE SIM. AVG. PLI
-            figs[0].savefig(fig_save_path + f'sim_run_{m}_patient{p}.png', \
-                                 dpi=300, bbox_inches='tight')
-            brain_figs[0].savefig(fig_save_path + f'mni_sim_run_{m}_patient{p}.png', dpi=300)
-            plt.close('all')
 
     # SAVE OPTIMAL PARAMETERS
     if run:
@@ -634,9 +529,112 @@ for p in range(n_patients):
         plt.savefig(fig_save_path + f'distr_{p}_par{npar}.png', dpi=300, bbox_inches='tight')
         plt.close()
     print('--------------------------------------------------------------------------------------------------------------------')
-        
-    # save and close    
-    #plt.legend()
-    #plt.savefig(fig_save_path + f'fits_patient_{p}.png', dpi=300, bbox_inches='tight')
-    plt.close()
 
+
+
+# PLOT FUNCTIONAL CONNECTOMES
+figs, brain_figs = plot_functional_connectomes(mean_exp_PLI, \
+                     coordinates=coordinates, \
+                     region_names=region_names, regions=regions, colours=colours)
+print('Done.')
+
+# SAVE AND CLOSE EXP. AVG. PLI
+figs[0].savefig(fig_save_path + f'exp_control.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig(fig_save_path + f'mni_exp_control.png', dpi=300)
+plt.close(figs[0])
+
+# PLOT STRUCTURAL CONNECTIVITY
+print('\nPlotting SC...')
+figs, brain_figs = plot_functional_connectomes(mean_W, coordinates=coordinates, \
+                             region_names=region_names, regions=regions, \
+                             colours=colours, \
+                             edge_threshold='0.0%')
+print('Done.')
+
+# SAVE AND CLOSE STRUCTURAL CONNECTIVITY
+figs[0].savefig(fig_save_path + 'structural.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig(fig_save_path + 'structural_mni.png', dpi=300)
+plt.close('all')
+if m == 0:
+figs, brain_figs = plot_functional_connectomes(exp_PLI_p, coordinates=coordinates, \
+                     region_names=region_names, regions=regions, colours=colours)
+print('Done.')
+
+# SAVE AND CLOSE EXP. AVG. PLI
+figs[0].savefig(fig_save_path + f'exp_patient_{p}.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig(fig_save_path + f'mni_exp_patient_{p}.png', dpi=300)
+plt.close(figs[0])
+
+
+# FIND OPTIMAL SIMULATED PLI CONTROL
+print(f'\nSolving for optimal healthy dynamical model parameters..')
+sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
+ parameterss=np.array([minimize.x]), cutoff=cutoff)
+print('Done.')
+
+# EXTRACT SOLUTION
+x = sol[0]['x']
+t = sol[0]['t']
+
+# SAMPLING RATE
+fs = 1/(t[1]-t[0])
+
+# BANDPASS
+x = butter_bandpass_filter(x, band[0], band[1], fs)
+
+# COMPUTE PLI MATRIX
+opt_sim_PLI = PLI(x)
+
+# PLOT OPTIMAL SIMULATED AVERAGE PLI 
+print('\nPlotting optimal simulated FC...')
+# MAKE TITLE
+title = ''
+for i, str_par in enumerate(control_pars):
+title += f'{str_par} = {round(minimize.x[i],3)} '
+title += f'optima = {minimize.fun}'
+figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
+        region_names=region_names, regions=regions, colours=colours, title=title)
+print('Done.')
+
+# SAVE AND CLOSE SIM. AVG. PLI
+figs[0].savefig(fig_save_path + f'sim_run_{m}_patient_{p}_control.png', \
+             dpi=300, bbox_inches='tight')
+brain_figs[0].savefig(fig_save_path + f'mni_sim_run_{m}_patient_{p}_control.png', \
+             dpi=300)
+plt.close('all')
+
+# FIND OPTIMAL SIMULATED PLI CONTROL
+print(f'\nSolving for optimal patient dynamical model parameters..')
+sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
+ parameterss=np.array([minimize_p.x]), cutoff=cutoff)
+print('Done.')
+
+# EXTRACT SOLUTION
+x = sol[0]['x']
+t = sol[0]['t']
+
+# SAMPLING RATE
+fs = 1/(t[1]-t[0])
+
+# BANDPASS
+x = butter_bandpass_filter(x, band[0], band[1], fs)
+
+# COMPUTE PLI MATRIX
+opt_sim_PLI = PLI(x)
+
+# PLOT OPTIMAL SIMULATED AVERAGE PLI PATIENT P 
+print('\nPlotting optimal patient simulated FC...')
+# MAKE TITLE
+title = ''
+for i, str_par in enumerate(control_pars):
+title += f'{str_par} = {round(minimize_p.x[i],3)} '
+title += f'optima = {minimize_p.fun}'
+figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
+            region_names=region_names, regions=regions, colours=colours, title=title)
+print('Done.')
+
+# SAVE AND CLOSE SIM. AVG. PLI
+figs[0].savefig(fig_save_path + f'sim_run_{m}_patient{p}.png', \
+                 dpi=300, bbox_inches='tight')
+brain_figs[0].savefig(fig_save_path + f'mni_sim_run_{m}_patient{p}.png', dpi=300)
+plt.close('all')

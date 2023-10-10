@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import symengine as sym
 from solve_brain.brain_models import compile_hopf, solve_dde, error_FC, random_initial, threshold_matrix
-from solve_brain.brain_analysis import PLI, butter_bandpass_filter
+from solve_brain.brain_analysis import PLI, butter_bandpass_filter, plot_functional_connectomes
 #from solve_brain.brain_analysis import plot_functional_connectomes, PLI, butter_bandpass_filter
 from scipy.optimize import fmin, differential_evolution
 from scipy.stats import ttest_ind, kstest
@@ -19,6 +19,7 @@ from joblib import Parallel, delayed
 import dill as pickle
 from math import pi
 from glioma_helpers import parallell_optimize
+from jitcdde import jitcdde
 plt.style.use('seaborn')
 np.random.seed(2)
 #np.random.seed(2)
@@ -31,9 +32,9 @@ np.random.seed(2)
 # ---------------------------------------------------
 
 # run twice for now
-fig_save_path = '../plots/fitting/'
 random_init = True
-run = True
+run = False
+craniotomy = False  # whether to inclde/exclude tumor regions
 
 # run multiple times (to compare between runs)
 M = 100
@@ -42,16 +43,15 @@ maxiter = 100
 objective = 'pearson'
 
 # PATH NAMES
+DE_file = '../simulations/hopf.so'
 mean_struct_conn_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
 exp_PLI_glioma_path = '../data/exp_PLI_glioma.p'
 
 # PROCESSING SETTINGS
 normalize_exp = True  # inside minimize function
-threshold_exp = 0.975  # inside minimize function (0.972 healthy, 0.977 avg patient)
-thres_h = 0.972
-thres_p = 0.972
-#threshold_exp = -1
+threshold_exp = 0.972  # inside minimize function (0.972 healthy, 0.977 avg patient)
+threshold_plot = 0.9  # threshold for plotting exp. FC
 
 # ODE SETTINGS
 step = 1/1250
@@ -154,6 +154,32 @@ for n in range(N):
     lobe = int(region_data[n])-1
     regions[lobe].append(n)
 
+
+# HOPF PARAMETERS
+a = [1 for n in range(N)]
+b = [1 for n in range(N)]
+w = freqs * 2*pi   # set frequencies as mean of experimental ones
+kappa = 20
+decay = sym.var('decay')
+h = sym.var('h')
+
+# symbolic hopf parameters
+control_pars = [h, decay]
+bounds = [(10,18),(12,17)]
+if threshold_exp == -1:
+    bounds.append((0,1.0))
+
+# compile hopf
+print('begin compiling...')
+DE = compile_hopf(N, a=a, b=b, delays=delays, t_span=tspan, \
+             kappa=kappa, w=w, decay=decay, random_init=True, \
+             h=h,\
+             control_pars=control_pars, \
+             only_a=True)
+DE.save_compiled(destination=DE_file, overwrite=True)
+
+
+
 # NEW INITIALIZATIONS
 healthy_pars = []
 patient_pars = []
@@ -166,42 +192,44 @@ if run:
     print(f'\nInitiating fitting...')
     start_time_patient = time.time()
 
-    # add all tumor regions together
-    tumor_inds = np.array([])
-    for k in range(n_patients):
-        tumor_inds = np.concatenate((tumor_inds,  np.nonzero(tumor_indss[k,:])[0]))
-    tumor_inds = list(set(list(tumor_inds))) 
-    tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
+    # add all tumor regions together (used for craniotomy)
+    if craniotomy:
+        tumor_inds = np.array([])
+        for k in range(n_patients):
+            tumor_inds = np.concatenate((tumor_inds,  np.nonzero(tumor_indss[k,:])[0]))
+        tumor_inds = list(set(list(tumor_inds))) 
+        tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
+    else:
+        tumor_inds = []  
 
     # experimental FC
     exp_PLI_p = mean_exp_PLI_p
 
-    # HOPF PARAMETERS
-    a = [1 for n in range(N)]
-    b = [1 for n in range(N)]
-    w = freqs * 2*pi   # set frequencies as mean of experimental ones
-    kappa = 20
-    decay = sym.var('decay')
-    h = sym.var('h')
+    ## HOPF PARAMETERS
+    #a = [1 for n in range(N)]
+    #b = [1 for n in range(N)]
+    #w = freqs * 2*pi   # set frequencies as mean of experimental ones
+    #kappa = 20
+    #decay = sym.var('decay')
+    #h = sym.var('h')
 
-    # symbolic hopf parameters
-    control_pars = [h, decay]
-    bounds = [(10,18),(12,17)]
-    if thres_h == -1:
-        bounds.append((0,1.0))
+    ## symbolic hopf parameters
+    #control_pars = [h, decay]
+    #bounds = [(10,18),(12,17)]
+    #if thres_h == -1:
+    #    bounds.append((0,1.0))
 
-    # compile hopf
-    print('begin compiling...')
-    DE_file = '../simulations/hopf.so'
-    DE = compile_hopf(N, a=a, b=b, delays=delays, t_span=tspan, \
-                 kappa=kappa, w=w, decay=decay, random_init=True, \
-                 h=h,\
-                 control_pars=control_pars, \
-                 only_a=True)
-    DE.save_compiled(destination=DE_file, overwrite=True)
+    ## compile hopf
+    #print('begin compiling...')
+    #DE = compile_hopf(N, a=a, b=b, delays=delays, t_span=tspan, \
+    #             kappa=kappa, w=w, decay=decay, random_init=True, \
+    #             h=h,\
+    #             control_pars=control_pars, \
+    #             only_a=True)
+    #DE.save_compiled(destination=DE_file, overwrite=True)
         
     # FIT AVERAGE CONTROL IN PARALLEL
-    minimizes = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI, thres_h, y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78)
+    minimizes = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI, y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78, inds=tumor_inds)
 
 
     # SAVE OPTIMAL PARAMETERS
@@ -211,7 +239,7 @@ if run:
     print(f'Completed fitting control')
     
     # FIT AVERAGE PATIENT IN PARALLEL
-    minimizes_p = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI_p, thres_h, y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78)
+    minimizes_p = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI_p,  y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78)
 
     # SAVE OPTIMAL PARAMETERS
     for minimize_p in minimizes_p:
@@ -251,6 +279,9 @@ healthy_val = np.array(healthy_vals)
 patient_val = np.array(patient_vals)
 n_pars = healthy_par.shape[1]
 
+# for simulating FC later
+avg_par_healthy = []
+avg_par_glioma = []
 
 # ITERATE THROUGH PARAMETERS
 for npar in range(n_pars):
@@ -273,6 +304,8 @@ for npar in range(n_pars):
     p_val = ks_test.pvalue
     avg_diff = np.mean(patient_pari) - np.mean(healthy_pari)
     print(f'{npar+1}\t\t{np.mean(healthy_pari)}\t\t{np.mean(patient_pari)}\t\t{round(avg_diff,2)}\t\t\t{round(p_val,10)}\t{healthy_pari.size}/{M}\t\t\t{patient_pari.size}/{M}')
+    avg_par_healthy.append(np.mean(healthy_pari))
+    avg_par_glioma.append(np.mean(patient_pari))
 
     # PLOT OBJECTIVE VALUE WITH PARAMETER VALUE
     fig = plt.figure()
@@ -322,4 +355,110 @@ for npar in range(n_pars):
     plt.close()
 print('--------------------------------------------------------------------------------------------------------------------')
     
+# Threshold experimental functional connectomes for plotting
+mean_exp_PLI = threshold_matrix(mean_exp_PLI, threshold_plot) / np.amax(mean_exp_PLI)
+mean_exp_PLI_p = threshold_matrix(mean_exp_PLI_p, threshold_plot) / np.amax(mean_exp_PLI_p)
 
+# PLOT FUNCTIONAL CONNECTOMES
+figs, brain_figs = plot_functional_connectomes(mean_exp_PLI, \
+                     coordinates=coordinates, \
+                     region_names=region_names, regions=regions, colours=colours, title=' ')
+print('Done.')
+
+# SAVE AND CLOSE EXP. AVG. PLI
+figs[0].savefig('../plots/fit_average/exp_control.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/fit_average/mni_exp_control.png', dpi=300)
+plt.close(figs[0])
+
+# PLOT STRUCTURAL CONNECTIVITY
+print('\nPlotting SC...')
+figs, brain_figs = plot_functional_connectomes(mean_W, coordinates=coordinates, \
+                             region_names=region_names, regions=regions, \
+                             colours=colours, \
+                             edge_threshold='0.0%', title=' ')
+print('Done.')
+
+# SAVE AND CLOSE STRUCTURAL CONNECTIVITY
+figs[0].savefig('../plots/fit_average/structural.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/fit_average/structural_mni.png', dpi=300)
+plt.close('all')
+
+# Plot exp glioma PLI
+figs, brain_figs = plot_functional_connectomes(mean_exp_PLI_p, coordinates=coordinates, \
+                     region_names=region_names, regions=regions, colours=colours, title=' ')
+print('Done.')
+
+# SAVE AND CLOSE EXP. AVG. PLI
+figs[0].savefig('../plots/fit_average/exp_patients.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/fit_average/mni_exp_patients.png', dpi=300)
+plt.close(figs[0])
+
+
+# FIND OPTIMAL SIMULATED PLI CONTROL
+print(f'\nSolving for optimal healthy dynamical model parameters..')
+sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
+ parameterss=np.array([avg_par_healthy]), cutoff=cutoff)
+print('Done.')
+
+# EXTRACT SOLUTION
+x = sol[0]['x']
+t = sol[0]['t']
+
+# SAMPLING RATE
+fs = 1/(t[1]-t[0])
+
+# BANDPASS
+x = butter_bandpass_filter(x, band[0], band[1], fs)
+
+# COMPUTE PLI MATRIX
+opt_sim_PLI = PLI(x)
+opt_sim_PLI = opt_sim_PLI / np.amax(opt_sim_PLI)
+
+# PLOT OPTIMAL SIMULATED AVERAGE PLI 
+print('\nPlotting optimal simulated FC...')
+# MAKE TITLE
+title = ' '
+figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
+        region_names=region_names, regions=regions, colours=colours, title=title)
+print('Done.')
+
+# SAVE AND CLOSE SIM. AVG. PLI
+figs[0].savefig('../plots/fit_average/sim_PLI_patients.png', \
+             dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/fit_average/mni_sim_PLI_patients.png', \
+             dpi=300)
+plt.close('all')
+
+# FIND OPTIMAL SIMULATED PLI CONTROL
+print(f'\nSolving for optimal patient dynamical model parameters..')
+sol = solve_dde(DE, DE.y0, mean_W, t_span=tspan, step=step, atol=atol, rtol=rtol, \
+ parameterss=np.array([avg_par_glioma]), cutoff=cutoff)
+print('Done.')
+
+# EXTRACT SOLUTION
+x = sol[0]['x']
+t = sol[0]['t']
+
+# SAMPLING RATE
+fs = 1/(t[1]-t[0])
+
+# BANDPASS
+x = butter_bandpass_filter(x, band[0], band[1], fs)
+
+# COMPUTE PLI MATRIX
+opt_sim_PLI = PLI(x)
+opt_sim_PLI = opt_sim_PLI / np.amax(opt_sim_PLI)
+
+# PLOT OPTIMAL SIMULATED AVERAGE PLI PATIENT P 
+print('\nPlotting optimal patient simulated FC...')
+# MAKE TITLE
+title = ' '
+figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordinates, \
+            region_names=region_names, regions=regions, colours=colours, title=title)
+print('Done.')
+
+# SAVE AND CLOSE SIM. AVG. PLI
+figs[0].savefig('../plots/fit_average/sim_PLI_control.png', \
+                 dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/fit_average/mni_sim_PLI_control.png', dpi=300)
+plt.close('all')

@@ -33,6 +33,7 @@ def optimize(varlist):
     W = varlist[19]
     step = varlist[20]
     n = varlist[21]
+    inds = varlist[22]
     
     # compile jitcode object from file
     DE = jitcdde(module_location=DE_file, control_pars=control_pars, max_delay=0, n=n)
@@ -40,7 +41,7 @@ def optimize(varlist):
     # optimize
     minimize = differential_evolution(error_FC, bounds, args=(DE, W, tspan, step, \
                     atol, rtol, cutoff, band, exp_PLI, normalize_exp, threshold_exp,  \
-                    False, False, 0, y0, [], objective, False), \
+                    False, False, 0, y0, inds, objective, False), \
                     disp=True, strategy='best1bin', popsize=popsize, init='latinhypercube', tol=opt_tol, \
                     recombination=recombination, mutation=mutation, maxiter=maxiter)
 
@@ -62,11 +63,11 @@ def optimize(varlist):
         return minimize
 
 
-def parallell_optimize(W, DE_file, control_pars, bounds, M, n_jobs, exp_FC, thres_h, y0s, tspan=(0,11), atol=1e-6, rtol=1e-3, cutoff=1,band=[8,12],normalize_exp=True, threshold_exp=0.0,objective='pearson',popsize=30,opt_tol=1e-1, recombination=0.3, mutation=(0.5,10),maxiter=100, step=1e-1, n=1):
+def parallell_optimize(W, DE_file, control_pars, bounds, M, n_jobs, exp_FC, y0s, tspan=(0,11), atol=1e-6, rtol=1e-3, cutoff=1,band=[8,12],normalize_exp=True, threshold_exp=0.0,objective='pearson',popsize=30,opt_tol=1e-1, recombination=0.3, mutation=(0.5,10),maxiter=100, step=1e-1, n=1, inds=[]):
 
     print('\n\nBegin control parallelization...')
     start_time_h = time.time()
-    minimizes = Parallel(n_jobs=n_jobs, prefer=None)(delayed(optimize)([exp_FC, y0s[m], thres_h, DE_file, control_pars, bounds, tspan, atol, rtol, cutoff, band, normalize_exp, threshold_exp, objective, popsize, opt_tol, recombination, mutation, maxiter, W, step, n]) for m in range(M))        
+    minimizes = Parallel(n_jobs=n_jobs, prefer=None)(delayed(optimize)([exp_FC, y0s[m], DE_file, control_pars, bounds, tspan, atol, rtol, cutoff, band, normalize_exp, threshold_exp, objective, popsize, opt_tol, recombination, mutation, maxiter, W, step, n, inds]) for m in range(M))        
     print(f'Healthy control optimization took: {time.time() - start_time_h} seconds')
     print(f'One average optimization took: {(time.time() - start_time_h)/M} seconds')
     return minimizes
