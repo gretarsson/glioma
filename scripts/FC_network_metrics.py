@@ -1,10 +1,8 @@
 import symengine as sym
 import numpy as np
-from solve_brain import compile_hopf, solve_dde, threshold_matrix, random_initial
+from solve_brain.brain_models import compile_hopf, solve_dde, threshold_matrix, random_initial
 from scipy.stats import pearsonr
-from network_dynamics import PLI
-from fourier import butter_bandpass_filter, bandpower
-from feedback_helpers import compute_phase_coherence
+from solve_brain.brain_analysis import PLI, butter_bandpass_filter, bandpower, ompute_phase_coherence
 from tqdm import tqdm
 import pickle
 from math import pi, ceil
@@ -20,13 +18,13 @@ np.random.seed(0)
 run = False
 run_metrics = False
 # save paths
-path = './figures/glioma_network_metrics/'
-W_path = './connectome/glioma/glioma_struct_conns_avg.p'
-exp_PLI_path = './connectome/glioma/exp_PLI_updated.p'
-freq_path = './connectome/glioma/exp_frequencies.csv'
+path = '../plots/network_metrics/'
+W_path = '../data/glioma_struct_conns_avg.p'
+exp_PLI_path = '../data/exp_PLI_updated.p'
+freq_path = '../data/exp_frequencies.csv'
 
 # read tumor file (to fit tumor region parameters)
-tumor_indss_f = './connectome/glioma/patients_tumor_overlaps.csv'
+tumor_indss_f = '../data/patients_tumor_overlaps.csv'
 tumor_indss = pd.read_csv(tumor_indss_f, sep=';').to_numpy()
 tumor_indss = tumor_indss[:,1:]
 tumor_inds = np.array([])
@@ -107,15 +105,15 @@ if run:
             sim_PLIs[i,j,:,:] = sim_PLI
             powers[i,j,:] = power
     # save files
-    with open(path + f'data/brain_simulation.pl', 'wb') as f:
+    with open('../simulations/network_metrics_sim.pl', 'wb') as f:
         pickle.dump((sim_PLIs,powers), f)
-    with open(path + f'data/pars.pl', 'wb') as f:
+    with open('../simulations/network_metrics_sim_pars.pl', 'wb') as f:
         pickle.dump(pars, f)
 
 # load files
-with open(path + f'data/pars.pl', 'rb') as f:
+with open('../simulations/network_metrics_sim_pars.pl', 'rb') as f:
     pars = pickle.load(f)
-with open(path + f'data/brain_simulation.pl', 'rb') as f:
+with open('../simulations/network_metrics_sim.pl', 'rb') as f:
     (sim_PLIs,powers) = pickle.load(f)
 
 # initialize network metrics
@@ -153,9 +151,9 @@ if run_metrics:
             avg_clusterings[i,j] = avg_clustering
             clusterings[i,j,:] = list(clustering.values())
             centralities[i,j] = avg_centrality
-        with open(path + f'data/network_metrics.pl', 'wb') as f:
+        with open('../simulations/network_metrics.pl', 'wb') as f:
             pickle.dump((triangles, avg_clusterings, clusterings, centralities), f)
-with open(path + f'data/network_metrics.pl', 'rb') as f:
+with open('../simulations/network_metrics.pl', 'rb') as f:
     triangles, avg_clusterings, clusterings, centralities = pickle.load(f)
             
 # PLOT THE RESULTS
@@ -222,7 +220,7 @@ for i in range(down_N):
     plt.title(f'h = {round(pars[down_inds[i]],2)}')
     plt.xlabel('Node')
     plt.ylabel('Local clustering')
-    plt.savefig(path+f'node_vs_cluster_{i+1}.png', dpi=300)
+    plt.savefig('../plots/network_metrics/node_vs_cluster_{i+1}.png', dpi=300)
     plt.close()
 
     plt.figure()
@@ -232,7 +230,7 @@ for i in range(down_N):
     plt.title(f'h = {round(pars[down_inds[i]],2)}')
     plt.xlabel('Bandpower')
     plt.ylabel('Local clustering')
-    plt.savefig(path+f'power_vs_cluster_{i+1}.png', dpi=300)
+    plt.savefig('../plots/network_metrics/power_vs_cluster_{i+1}.png', dpi=300)
     plt.close()
     
 # we're done
