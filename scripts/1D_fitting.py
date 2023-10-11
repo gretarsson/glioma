@@ -136,11 +136,11 @@ fig_coh, ax_coh = plt.subplots(1,1)
 fig_obj, ax_obj = plt.subplots(1,1)
 for i in range(ICN):
     # plot pearson correlation
-    ax_pearson.plot(pars, rs[i,:])
+    ax_pearson.plot(pars, -rs[i,:])
     # plot coherence error
     ax_coh.plot(pars, coh_errors[i,:])
     # plot objective function
-    ax_obj.plot(pars, (rs - 5*coh_errors)[i,:])
+    ax_obj.plot(pars, -(rs - 5*coh_errors)[i,:])
 
 # pearson figure
 parvar = control_pars[0]
