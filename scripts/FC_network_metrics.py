@@ -2,7 +2,7 @@ import symengine as sym
 import numpy as np
 from solve_brain.brain_models import compile_hopf, solve_dde, threshold_matrix, random_initial
 from scipy.stats import pearsonr
-from solve_brain.brain_analysis import PLI, butter_bandpass_filter, bandpower, ompute_phase_coherence
+from solve_brain.brain_analysis import PLI, butter_bandpass_filter, bandpower, compute_phase_coherence
 from tqdm import tqdm
 import pickle
 from math import pi, ceil
@@ -15,8 +15,8 @@ import pandas as pd
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(0)
-run = False
-run_metrics = False
+run = True
+run_metrics = True
 # save paths
 path = '../plots/network_metrics/'
 W_path = '../data/glioma_struct_conns_avg.p'
