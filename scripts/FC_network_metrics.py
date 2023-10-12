@@ -16,7 +16,7 @@ import pandas as pd
 # -----------------------------------------------------------
 np.random.seed(0)
 run = False
-run_metrics = False
+#run_metrics = False
 # save paths
 path = '../plots/network_metrics/'
 W_path = '../data/glioma_struct_conns_avg.p'
@@ -105,16 +105,16 @@ if run:
             sim_PLIs[i,j,:,:] = sim_PLI
             powers[i,j,:] = power
     # save files
-    with open('../simulations/network_metrics_sim.pl', 'wb') as f:
-        pickle.dump((sim_PLIs,powers), f)
-    with open('../simulations/network_metrics_sim_pars.pl', 'wb') as f:
-        pickle.dump(pars, f)
+    #with open('../simulations/network_metrics_sim.pl', 'wb') as f:
+    #    pickle.dump((sim_PLIs,powers), f)
+    #with open('../simulations/network_metrics_sim_pars.pl', 'wb') as f:
+    #    pickle.dump(pars, f)
 
-# load files
-with open('../simulations/network_metrics_sim_pars.pl', 'rb') as f:
-    pars = pickle.load(f)
-with open('../simulations/network_metrics_sim.pl', 'rb') as f:
-    (sim_PLIs,powers) = pickle.load(f)
+## load files
+#with open('../simulations/network_metrics_sim_pars.pl', 'rb') as f:
+#    pars = pickle.load(f)
+#with open('../simulations/network_metrics_sim.pl', 'rb') as f:
+#    (sim_PLIs,powers) = pickle.load(f)
 
 # initialize network metrics
 ICN,M,N,_ = sim_PLIs.shape
@@ -123,7 +123,7 @@ avg_clusterings = np.zeros((ICN,M))
 clusterings = np.zeros((ICN,M,N))
 centralities = np.zeros((ICN,M))
 # loop through to compute metrics
-if run_metrics:
+if run:
     print('\nComputing network metrics...')
     for i in tqdm(range(ICN)):
         for j in tqdm(range(M),leave=False):
@@ -151,9 +151,9 @@ if run_metrics:
             avg_clusterings[i,j] = avg_clustering
             clusterings[i,j,:] = list(clustering.values())
             centralities[i,j] = avg_centrality
-        with open('../simulations/network_metrics.pl', 'wb') as f:
+        with open('../simulations/network_metrics/network_metrics.pl', 'wb') as f:
             pickle.dump((triangles, avg_clusterings, clusterings, centralities), f)
-with open('../simulations/network_metrics.pl', 'rb') as f:
+with open('../simulations/network_metrics/network_metrics.pl', 'rb') as f:
     triangles, avg_clusterings, clusterings, centralities = pickle.load(f)
             
 # PLOT THE RESULTS
