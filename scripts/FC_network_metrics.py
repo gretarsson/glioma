@@ -15,8 +15,8 @@ import pandas as pd
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(0)
-run = True
-run_metrics = True
+run = False
+run_metrics = False
 # save paths
 path = '../plots/network_metrics/'
 W_path = '../data/glioma_struct_conns_avg.p'
@@ -220,7 +220,7 @@ for i in range(down_N):
     plt.title(f'h = {round(pars[down_inds[i]],2)}')
     plt.xlabel('Node')
     plt.ylabel('Local clustering')
-    plt.savefig('../plots/network_metrics/node_vs_cluster_{i+1}.png', dpi=300)
+    plt.savefig(f'../plots/network_metrics/node_vs_cluster_{i+1}.png', dpi=300)
     plt.close()
 
     plt.figure()
@@ -230,7 +230,7 @@ for i in range(down_N):
     plt.title(f'h = {round(pars[down_inds[i]],2)}')
     plt.xlabel('Bandpower')
     plt.ylabel('Local clustering')
-    plt.savefig('../plots/network_metrics/power_vs_cluster_{i+1}.png', dpi=300)
+    plt.savefig(f'../plots/network_metrics/power_vs_cluster_{i+1}.png', dpi=300)
     plt.close()
     
 # we're done
