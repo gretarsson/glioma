@@ -18,7 +18,7 @@ import colorcet as cc
 from joblib import Parallel, delayed
 import dill as pickle
 from math import pi
-from glioma_helpers import parallell_optimize
+from glioma_helpers import parallell_optimize, create_directory
 from jitcdde import jitcdde
 plt.style.use('seaborn')
 np.random.seed(2)
@@ -33,20 +33,24 @@ np.random.seed(2)
 
 # run twice for now
 random_init = True
-run = False
-craniotomy = False  # whether to inclde/exclude tumor regions
+run = True
+craniotomy = False  # whether to include/exclude tumor regions
 
 # run multiple times (to compare between runs)
-M = 100
+M = 500
+repeat_init = 10
 n_jobs = min(70,M)
 maxiter = 100
 objective = 'pearson'
 
 # PATH NAMES
-DE_file = '../simulations/hopf.so'
+folder_name = 'repeat_IC'
+DE_file = '../simulations/'+folder_name+'/hopf.so'
 mean_struct_conn_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
 exp_PLI_glioma_path = '../data/exp_PLI_glioma.p'
+create_directory('../plots/'+folder_name+'/')
+create_directory('../simulations/'+folder_name+'/')
 
 # PROCESSING SETTINGS
 normalize_exp = True  # inside minimize function
@@ -73,7 +77,13 @@ G = nx.from_numpy_matrix(mean_W)
 N = mean_W.shape[0]  # number of nodes
 
 # SET INITIAL CONDITIONS
-if random_init:
+if repeat_init:
+    y0 = []
+    for m in range(int(M/repeat_init)):
+        y0_m = random_initial(N)
+        for r in range(repeat_init):
+            y0.append(y0_m)
+elif random_init:
     y0 = [random_initial(N) for _ in range(M)]
 else:
     y0_m = random_initial(N)
@@ -251,11 +261,11 @@ if run:
 # SAVE OPTIMAL PARAMETERS
 if run:
     print(f'\nSaving optimal parameters...')
-    pickle.dump( healthy_pars, open( '../simulations/average_healthy_pars.pl', "wb" ) )
-    pickle.dump( patient_pars, open( '../simulations/average_patient_pars.pl', "wb" ) )
-    pickle.dump( healthy_vals, open( '../simulations/average_healthy_vals.pl', "wb" ) )
-    pickle.dump( patient_vals, open( '../simulations/average_patient_vals.pl', "wb" ) )
-    pickle.dump( y0, open( '../simulations/average_y0.pl', "wb" ) )
+    pickle.dump( healthy_pars, open( '../simulations/'+folder_name+'/healthy_pars.pl', "wb" ) )
+    pickle.dump( patient_pars, open( '../simulations/'+folder_name+'/patient_pars.pl', "wb" ) )
+    pickle.dump( healthy_vals, open( '../simulations/'+folder_name+'/healthy_vals.pl', "wb" ) )
+    pickle.dump( patient_vals, open( '../simulations/'+folder_name+'/patient_vals.pl', "wb" ) )
+    pickle.dump( y0, open( '../simulations/'+folder_name+'y0.pl', "wb" ) )
     print('Done.')
 
 # print time elapsed
@@ -263,11 +273,11 @@ print(f'Whole script took: {time.time() - start_time} seconds')
 
 # LOAD OPTIMAL PARAMETERS
 print('\nLoading optimal parameters...')
-healthy_pars = pickle.load( open( '../simulations/average_healthy_pars.pl', "rb" ) )
-patient_pars = pickle.load( open( '../simulations/average_patient_pars.pl', "rb" ) )
-healthy_vals = pickle.load( open( '../simulations/average_healthy_vals.pl', "rb" ) )
-patient_vals = pickle.load( open( '../simulations/average_patient_vals.pl', "rb" ) )
-y0 = pickle.load( open( '../simulations/average_y0.pl', "rb" ) )
+healthy_pars = pickle.load( open( '../simulations/'+folder_name+'healthy_pars.pl', "rb" ) )
+patient_pars = pickle.load( open( '../simulations/'+folder_name+'patient_pars.pl', "rb" ) )
+healthy_vals = pickle.load( open( '../simulations/'+folder_name+'healthy_vals.pl', "rb" ) )
+patient_vals = pickle.load( open( '../simulations/'+folder_name+'patient_vals.pl', "rb" ) )
+y0 = pickle.load( open( '../simulations/'+folder_name+'y0.pl', "rb" ) )
 print('Done.')
 
 # PLOT NEW PARAMETERS
@@ -315,7 +325,7 @@ for npar in range(n_pars):
     ax.scatter(healthy_pari, healthy_val, color=colours[-3])
     ax.scatter(patient_pari, patient_val, color=colours[0])
     ax.set_xlim([0,30])
-    fig.savefig(f'../plots/fit_average/obj_par{npar}.png', dpi=300, bbox_inches='tight')
+    fig.savefig(f'../plots/'+folder_name+'/obj_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # PLOT HEALTHY AND PATIENT POINTS
@@ -337,7 +347,7 @@ for npar in range(n_pars):
     fulldiff = fulldiff[~np.isnan(fulldiff)]
     lim = np.amax([np.abs(np.amax(fulldiff)), np.abs(np.amin(fulldiff))])
     ax.set_xlim([-lim-1,lim+1])
-    fig.savefig(f'../plots/fit_average/diff_par{npar}.png', dpi=300, bbox_inches='tight')
+    fig.savefig(f'../plots/'+folder_name+'/diff_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # histograms
@@ -351,7 +361,7 @@ for npar in range(n_pars):
                               markersize=10, label=f'mean difference {round(avg_diff,3)}')
     plt.legend(handles=[pval_leg, diff_leg])
     plt.xlim([0,30])
-    plt.savefig(f'../plots/fit_average/distr_par{npar}.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'../plots/'+folder_name+'/distr_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 print('--------------------------------------------------------------------------------------------------------------------')
     
@@ -366,8 +376,8 @@ figs, brain_figs = plot_functional_connectomes(mean_exp_PLI, \
 print('Done.')
 
 # SAVE AND CLOSE EXP. AVG. PLI
-figs[0].savefig('../plots/fit_average/exp_control.png', dpi=300, bbox_inches='tight')
-brain_figs[0].savefig('../plots/fit_average/mni_exp_control.png', dpi=300)
+figs[0].savefig('../plots/'+folder_name+'/exp_control.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/'+folder_name+'/mni_exp_control.png', dpi=300)
 plt.close(figs[0])
 
 # PLOT STRUCTURAL CONNECTIVITY
@@ -379,8 +389,8 @@ figs, brain_figs = plot_functional_connectomes(mean_W, coordinates=coordinates, 
 print('Done.')
 
 # SAVE AND CLOSE STRUCTURAL CONNECTIVITY
-figs[0].savefig('../plots/fit_average/structural.png', dpi=300, bbox_inches='tight')
-brain_figs[0].savefig('../plots/fit_average/structural_mni.png', dpi=300)
+figs[0].savefig('../plots/'+folder_name+'/structural.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/'+folder_name+'/structural_mni.png', dpi=300)
 plt.close('all')
 
 # Plot exp glioma PLI
@@ -389,8 +399,8 @@ figs, brain_figs = plot_functional_connectomes(mean_exp_PLI_p, coordinates=coord
 print('Done.')
 
 # SAVE AND CLOSE EXP. AVG. PLI
-figs[0].savefig('../plots/fit_average/exp_patients.png', dpi=300, bbox_inches='tight')
-brain_figs[0].savefig('../plots/fit_average/mni_exp_patients.png', dpi=300)
+figs[0].savefig('../plots/'+folder_name+'/exp_patients.png', dpi=300, bbox_inches='tight')
+brain_figs[0].savefig('../plots/'+folder_name+'/mni_exp_patients.png', dpi=300)
 plt.close(figs[0])
 
 
@@ -423,9 +433,9 @@ figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordina
 print('Done.')
 
 # SAVE AND CLOSE SIM. AVG. PLI
-figs[0].savefig('../plots/fit_average/sim_PLI_patients.png', \
+figs[0].savefig('../plots/'+folder_name+'/sim_PLI_patients.png', \
              dpi=300, bbox_inches='tight')
-brain_figs[0].savefig('../plots/fit_average/mni_sim_PLI_patients.png', \
+brain_figs[0].savefig('../plots/'+folder_name+'/mni_sim_PLI_patients.png', \
              dpi=300)
 plt.close('all')
 
@@ -458,7 +468,7 @@ figs, brain_figs = plot_functional_connectomes(opt_sim_PLI, coordinates=coordina
 print('Done.')
 
 # SAVE AND CLOSE SIM. AVG. PLI
-figs[0].savefig('../plots/fit_average/sim_PLI_control.png', \
+figs[0].savefig('../plots/'+folder_name+'/sim_PLI_control.png', \
                  dpi=300, bbox_inches='tight')
-brain_figs[0].savefig('../plots/fit_average/mni_sim_PLI_control.png', dpi=300)
+brain_figs[0].savefig('../plots/'+folder_name+'/mni_sim_PLI_control.png', dpi=300)
 plt.close('all')

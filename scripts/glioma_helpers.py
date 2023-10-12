@@ -5,6 +5,16 @@ from solve_brain.brain_models import error_FC
 from joblib import Parallel, delayed
 from jitcdde import jitcdde
 import numpy as np
+import os
+
+
+# self explanatory
+def create_directory(folder_path):
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Directory '{folder_path}' created.")
+    else:
+        print(f"Directory '{folder_path}' already exists.")
 
 
 
