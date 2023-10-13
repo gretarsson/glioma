@@ -33,7 +33,7 @@ np.random.seed(2)
 
 # run twice for now
 random_init = True
-run = True
+run = False
 craniotomy = False  # whether to include/exclude tumor regions
 
 # run multiple times (to compare between runs)
@@ -88,6 +88,7 @@ elif random_init:
 else:
     y0_m = random_initial(N)
     y0 = [y0_m for _ in range(M)]
+print(len(y0))
 
 # READ EXPERIMENTAL FREQUENCIES
 freq_f = '../data/exp_frequencies.csv'
@@ -175,7 +176,7 @@ h = sym.var('h')
 
 # symbolic hopf parameters
 control_pars = [h, decay]
-bounds = [(10,18),(12,17)]
+bounds = [(10,18),(14,16)]
 if threshold_exp == -1:
     bounds.append((0,1.0))
 
@@ -265,7 +266,7 @@ if run:
     pickle.dump( patient_pars, open( '../simulations/'+folder_name+'/patient_pars.pl', "wb" ) )
     pickle.dump( healthy_vals, open( '../simulations/'+folder_name+'/healthy_vals.pl', "wb" ) )
     pickle.dump( patient_vals, open( '../simulations/'+folder_name+'/patient_vals.pl', "wb" ) )
-    pickle.dump( y0, open( '../simulations/'+folder_name+'y0.pl', "wb" ) )
+    pickle.dump( y0, open( '../simulations/'+folder_name+'/y0.pl', "wb" ) )
     print('Done.')
 
 # print time elapsed
@@ -273,11 +274,11 @@ print(f'Whole script took: {time.time() - start_time} seconds')
 
 # LOAD OPTIMAL PARAMETERS
 print('\nLoading optimal parameters...')
-healthy_pars = pickle.load( open( '../simulations/'+folder_name+'healthy_pars.pl', "rb" ) )
-patient_pars = pickle.load( open( '../simulations/'+folder_name+'patient_pars.pl', "rb" ) )
-healthy_vals = pickle.load( open( '../simulations/'+folder_name+'healthy_vals.pl', "rb" ) )
-patient_vals = pickle.load( open( '../simulations/'+folder_name+'patient_vals.pl', "rb" ) )
-y0 = pickle.load( open( '../simulations/'+folder_name+'y0.pl', "rb" ) )
+healthy_pars = pickle.load( open( '../simulations/'+folder_name+'/healthy_pars.pl', "rb" ) )
+patient_pars = pickle.load( open( '../simulations/'+folder_name+'/patient_pars.pl', "rb" ) )
+healthy_vals = pickle.load( open( '../simulations/'+folder_name+'/healthy_vals.pl', "rb" ) )
+patient_vals = pickle.load( open( '../simulations/'+folder_name+'/patient_vals.pl', "rb" ) )
+y0 = pickle.load( open( '../simulations/'+folder_name+'/y0.pl', "rb" ) )
 print('Done.')
 
 # PLOT NEW PARAMETERS
@@ -288,6 +289,52 @@ patient_par = np.array(patient_pars)
 healthy_val = np.array(healthy_vals)
 patient_val = np.array(patient_vals)
 n_pars = healthy_par.shape[1]
+
+if repeat_init:
+    # CONTROL 
+    # Calculate the number of segments
+    num_segments = M // repeat_init
+
+    # Split into segments and calculate the minimum value in each segment
+    segmented_val = healthy_val[:num_segments * repeat_init].reshape(num_segments, repeat_init)
+    min_val_in_segments = segmented_val.min(axis=1)
+
+    # Find the indices of the rows with the lowest values in each segment
+    min_val_indices = np.argmin(segmented_val, axis=1)
+
+    # Extract the corresponding rows from healthy_par
+    selected_rows = []
+    for i in range(num_segments):
+        selected_rows.append(healthy_par[i * repeat_init + min_val_indices[i]])
+
+    # Convert the selected rows to a NumPy array
+    selected_rows = np.array(selected_rows)
+    healthy_par = selected_rows
+
+    # only keep optimal values
+    healthy_val = segmented_val[np.arange(num_segments), min_val_indices]
+    print(healthy_val)
+
+    # GLIOMA
+    # Split into segments and calculate the minimum value in each segment
+    segmented_val = patient_val[:num_segments * repeat_init].reshape(num_segments, repeat_init)
+    min_val_in_segments = segmented_val.min(axis=1)
+
+    # Find the indices of the rows with the lowest values in each segment
+    min_val_indices = np.argmin(segmented_val, axis=1)
+
+    # Extract the corresponding rows from healthy_par
+    selected_rows = []
+    for i in range(num_segments):
+        selected_rows.append(patient_par[i * repeat_init + min_val_indices[i]])
+
+    # Convert the selected rows to a NumPy array
+    selected_rows = np.array(selected_rows)
+    patient_par = selected_rows
+
+    # only keep optimal values
+    patient_val = segmented_val[np.arange(num_segments), min_val_indices]
+
 
 # for simulating FC later
 avg_par_healthy = []
@@ -325,7 +372,7 @@ for npar in range(n_pars):
     ax.scatter(healthy_pari, healthy_val, color=colours[-3])
     ax.scatter(patient_pari, patient_val, color=colours[0])
     ax.set_xlim([0,30])
-    fig.savefig(f'../plots/'+folder_name+'/obj_par{npar}.png', dpi=300, bbox_inches='tight')
+    fig.savefig('../plots/'+folder_name+f'/obj_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # PLOT HEALTHY AND PATIENT POINTS
@@ -347,7 +394,7 @@ for npar in range(n_pars):
     fulldiff = fulldiff[~np.isnan(fulldiff)]
     lim = np.amax([np.abs(np.amax(fulldiff)), np.abs(np.amin(fulldiff))])
     ax.set_xlim([-lim-1,lim+1])
-    fig.savefig(f'../plots/'+folder_name+'/diff_par{npar}.png', dpi=300, bbox_inches='tight')
+    fig.savefig('../plots/'+folder_name+f'/diff_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # histograms
@@ -361,7 +408,7 @@ for npar in range(n_pars):
                               markersize=10, label=f'mean difference {round(avg_diff,3)}')
     plt.legend(handles=[pval_leg, diff_leg])
     plt.xlim([0,30])
-    plt.savefig(f'../plots/'+folder_name+'/distr_par{npar}.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../plots/'+folder_name+f'/distr_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 print('--------------------------------------------------------------------------------------------------------------------')
     
