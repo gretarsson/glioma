@@ -33,18 +33,18 @@ np.random.seed(2)
 
 # run twice for now
 random_init = True
-run = False
+run = True
 craniotomy = False  # whether to include/exclude tumor regions
 
 # run multiple times (to compare between runs)
-M = 500
-repeat_init = 10
-n_jobs = min(70,M)
-maxiter = 100
+M = 10
+repeat_init = 0
+n_jobs = min(100,M)
+maxiter = 20
 objective = 'pearson'
 
 # PATH NAMES
-folder_name = 'repeat_IC'
+folder_name = 'old_coherence_fit'
 DE_file = '../simulations/'+folder_name+'/hopf.so'
 mean_struct_conn_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
@@ -70,6 +70,8 @@ tol = 0.01  #0.01
 recombination = 0.3  #0.7
 popsize = 50  #15
 mutation = (0.5,1.0)  #(0.5,1)
+par_coherence = 5
+mean_coherence = 0.67
 
 # READ STRUCTURAL CONNECTOME, AND FIND #NODES AND #SUBJECTS
 mean_W = pickle.load( open( mean_struct_conn_path, "rb" ) )
@@ -88,7 +90,6 @@ elif random_init:
 else:
     y0_m = random_initial(N)
     y0 = [y0_m for _ in range(M)]
-print(len(y0))
 
 # READ EXPERIMENTAL FREQUENCIES
 freq_f = '../data/exp_frequencies.csv'
@@ -176,7 +177,7 @@ h = sym.var('h')
 
 # symbolic hopf parameters
 control_pars = [h, decay]
-bounds = [(10,18),(14,16)]
+bounds = [(8,30),(10,60)]
 if threshold_exp == -1:
     bounds.append((0,1.0))
 
@@ -216,31 +217,8 @@ if run:
     # experimental FC
     exp_PLI_p = mean_exp_PLI_p
 
-    ## HOPF PARAMETERS
-    #a = [1 for n in range(N)]
-    #b = [1 for n in range(N)]
-    #w = freqs * 2*pi   # set frequencies as mean of experimental ones
-    #kappa = 20
-    #decay = sym.var('decay')
-    #h = sym.var('h')
-
-    ## symbolic hopf parameters
-    #control_pars = [h, decay]
-    #bounds = [(10,18),(12,17)]
-    #if thres_h == -1:
-    #    bounds.append((0,1.0))
-
-    ## compile hopf
-    #print('begin compiling...')
-    #DE = compile_hopf(N, a=a, b=b, delays=delays, t_span=tspan, \
-    #             kappa=kappa, w=w, decay=decay, random_init=True, \
-    #             h=h,\
-    #             control_pars=control_pars, \
-    #             only_a=True)
-    #DE.save_compiled(destination=DE_file, overwrite=True)
-        
     # FIT AVERAGE CONTROL IN PARALLEL
-    minimizes = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI, y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78, inds=tumor_inds)
+    minimizes = parallell_optimize(mean_W, DE_file, control_pars, bounds, M, n_jobs, mean_exp_PLI, y0, tspan=tspan, atol=atol, rtol=rtol, cutoff=cutoff, band=band, normalize_exp=normalize_exp, threshold_exp=threshold_exp, objective=objective, popsize=popsize, opt_tol=tol, recombination=recombination, mutation=mutation, maxiter=maxiter, step=step, n=2*78, inds=tumor_inds, mean_coherence=mean_coherence, par_coherence=par_coherence)
 
 
     # SAVE OPTIMAL PARAMETERS
@@ -371,7 +349,7 @@ for npar in range(n_pars):
     ax.set_ylabel('objective value') 
     ax.scatter(healthy_pari, healthy_val, color=colours[-3])
     ax.scatter(patient_pari, patient_val, color=colours[0])
-    ax.set_xlim([0,30])
+    ax.set_xlim([0,60])
     fig.savefig('../plots/'+folder_name+f'/obj_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -407,7 +385,7 @@ for npar in range(n_pars):
     diff_leg = mlines.Line2D([], [], color='black', marker='o', linestyle='None',
                               markersize=10, label=f'mean difference {round(avg_diff,3)}')
     plt.legend(handles=[pval_leg, diff_leg])
-    plt.xlim([0,30])
+    plt.xlim([0,60])
     plt.savefig('../plots/'+folder_name+f'/distr_par{npar}.png', dpi=300, bbox_inches='tight')
     plt.close()
 print('--------------------------------------------------------------------------------------------------------------------')
