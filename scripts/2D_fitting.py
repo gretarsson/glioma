@@ -22,10 +22,10 @@ plt.style.use('seaborn-muted')
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = True
+run = False
 craniotomy = False
 # save paths
-file_name = 'test'
+file_name = '750IC_50M'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
 simu_path = '../simulations/2D_fitting/' + file_name + '/'
 W_path = '../data/glioma_struct_conns_avg.p'
