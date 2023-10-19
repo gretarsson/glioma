@@ -24,6 +24,7 @@ plt.style.use('seaborn-muted')
 np.random.seed(5)
 run = False
 craniotomy = False
+loglog = True
 # save paths
 file_name = '750IC_50M'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
@@ -35,29 +36,17 @@ freq_path = '../data/exp_frequencies.csv'
 DE_file = simu_path+'hopf.so'
 create_directory(plot_path)
 create_directory(simu_path)
-n_jobs=100;ICN=1
-
-
-# read tumor file (to fit tumor region parameters)
-tumor_indss_f = '../data/patients_tumor_overlaps.csv'
-tumor_indss = pd.read_csv(tumor_indss_f, sep=';').to_numpy()
-tumor_indss = tumor_indss[:,1:]
-tumor_inds = np.array([])
-n_patients, N = tumor_indss.shape
-for k in range(n_patients):
-    tumor_inds = np.concatenate((tumor_inds,  np.nonzero(tumor_indss[k,:])[0]))
-tumor_inds = list(set(list(tumor_inds))) 
-tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
+n_jobs=100;ICN=10
 
 # parameters to vary
-parmin1=0;parmax1=50;M1=4  
-parmin2=0;parmax2=50;M2=4
+parmin1=0;parmax1=50;M1=50  
+parmin2=0;parmax2=50;M2=50
 
 # ODE parameters
 kappa = 20
 decay = sym.var('decay')
 h = sym.var('h')  
-control_pars = [h, decay]
+hontrol_pars = [h, decay]
 
 # solver settings
 t_span = (0,14.5)
@@ -86,6 +75,17 @@ if normalize:
 G_exp = nx.from_numpy_matrix(gli_PLI)
 exp_clustering = np.mean(list(nx.clustering(G_exp, weight='weight').values()))
 exp_centrality = np.mean(list(nx.eigenvector_centrality(G_exp, weight='weight').values()))
+
+# read tumor file (to fit tumor region parameters)
+tumor_indss_f = '../data/patients_tumor_overlaps.csv'
+tumor_indss = pd.read_csv(tumor_indss_f, sep=';').to_numpy()
+tumor_indss = tumor_indss[:,1:]
+tumor_inds = np.array([])
+n_patients, N = tumor_indss.shape
+for k in range(n_patients):
+    tumor_inds = np.concatenate((tumor_inds,  np.nonzero(tumor_indss[k,:])[0]))
+tumor_inds = list(set(list(tumor_inds))) 
+tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
 
 # read adjacency matrix and experimental frequencies
 W = pickle.load( open( W_path, "rb" ) )
@@ -156,7 +156,7 @@ if run:
             return (r_healthy, r_glioma, *clustering, *centrality)
 
         # Run the computation in parallel
-        results = Parallel(n_jobs=n_jobs)(delayed(compute_single)(i, j, DE_file, n) for i in tqdm(range(M1), desc=f'Initial condition {IC} of {ICN}') for j in range(M2)) 
+        results = Parallel(n_jobs=n_jobs)(delayed(compute_single)(i, j, DE_file, n) for i in tqdm(range(M1), desc=f'Initial condition {IC+1} of {ICN}') for j in range(M2)) 
         # store results 
         rs[IC] = np.array(results).reshape((M1,M2,2+2*N))
 
@@ -232,7 +232,7 @@ plt.imshow(np.abs(clustering_mean-exp_clustering), cmap='magma', extent=[pars2.m
 plt.colorbar(label='Mean clustering error')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(plot_path+file_name+'_clustering_grid.png',dpi=300)
+plt.savefig(plot_path+file_name+'_clustering_err_grid.png',dpi=300)
 
 # centrality error
 plt.figure()
@@ -263,57 +263,127 @@ for IC in range(ICN):
 plt.savefig(plot_path+file_name+'_optimal_coupling.png',dpi=300)
 
 # plot mean and std of all inital conditions
-plt.figure()
-mean_coupling_healthy = np.mean(max_coupling_healthy_all, axis=0)
-std_coupling_healthy = np.std(max_coupling_healthy_all, axis=0)
-mean_coupling_glioma = np.mean(max_coupling_glioma_all, axis=0)
-std_coupling_glioma = np.std(max_coupling_glioma_all, axis=0)
-# Plot the mean line
-plt.plot(pars2, mean_coupling_healthy, color='blue')
-plt.plot(pars2, mean_coupling_glioma, color='red')
-# Fill the area around the mean with the standard deviation
-plt.fill_between(pars2, mean_coupling_healthy - std_coupling_healthy, mean_coupling_healthy + std_coupling_healthy, color=(0.8, 0.8, 1.0), alpha=0.7)
-plt.fill_between(pars2, mean_coupling_glioma - std_coupling_glioma, mean_coupling_glioma + std_coupling_glioma, color=(1.0, 0.8, 0.8), alpha=0.7)
-# Customize the plot
-plt.xlabel('Excitability')
-plt.ylabel('Optimal coupling strength')
-plt.savefig(plot_path+file_name+'_optimal_coupling_std.png',dpi=300)
+if loglog:
+    plt.figure()
+    mean_coupling_healthy = np.mean(max_coupling_healthy_all, axis=0)
+    std_coupling_healthy = np.std(max_coupling_healthy_all, axis=0)
+    mean_coupling_glioma = np.mean(max_coupling_glioma_all, axis=0)
+    std_coupling_glioma = np.std(max_coupling_glioma_all, axis=0)
+    # Plot the mean line
+    plt.plot(pars2, mean_coupling_healthy, color='blue')
+    plt.plot(pars2, mean_coupling_glioma, color='red')
+    # Fill the area around the mean with the standard deviation
+    plt.fill_between(pars2, mean_coupling_healthy - std_coupling_healthy, mean_coupling_healthy + std_coupling_healthy, color=(0.8, 0.8, 1.0), alpha=0.7)
+    plt.fill_between(pars2, mean_coupling_glioma - std_coupling_glioma, mean_coupling_glioma + std_coupling_glioma, color=(1.0, 0.8, 0.8), alpha=0.7)
+    # Customize the plot
+    plt.xlabel('Excitability')
+    plt.ylabel('Optimal coupling strength')
+    plt.savefig(plot_path+file_name+'_optimal_coupling_std.png',dpi=300)
 
-# remove 0 from the data due to log transformation
-pars2 = pars2[1:]
-mean_coupling_healthy = mean_coupling_healthy[1:]
-mean_coupling_glioma = mean_coupling_glioma[1:]
-# Apply log transformations to the data
-log_pars2 = np.log(pars2)
-log_mean_coupling_healthy = np.log(mean_coupling_healthy)
-log_mean_coupling_glioma = np.log(mean_coupling_glioma)
+    # remove 0 from the data due to log transformation
+    pars2 = pars2[1:]
+    mean_coupling_healthy = mean_coupling_healthy[1:]
+    mean_coupling_glioma = mean_coupling_glioma[1:]
+    # Apply log transformations to the data
+    log_pars2 = np.log(pars2)
+    log_mean_coupling_healthy = np.log(mean_coupling_healthy)
+    log_mean_coupling_glioma = np.log(mean_coupling_glioma)
 
-plt.figure(figsize=(8, 6)) 
-plt.loglog(pars2, mean_coupling_healthy, color='blue')
-plt.loglog(pars2, mean_coupling_glioma, color='red')
+    plt.figure(figsize=(8, 6)) 
+    plt.loglog(pars2, mean_coupling_healthy, color='blue')
+    plt.loglog(pars2, mean_coupling_glioma, color='red')
 
-# Define a linear fitting function
-def linear_fit(x, a, b):
-    return a * x + b
-def log_fit(x, a, b):
-    return x**a * np.exp(b)
-# Fit a straight line to the log-log plot for the healthy data
-params_h, covariance_h = curve_fit(linear_fit, log_pars2, log_mean_coupling_healthy)
-a_h, b_h = params_h
-slope_h = a_h
-intercept_h = b_h
+    # Define a linear fitting function
+    def linear_fit(x, a, b):
+        return a * x + b
+    def log_fit(x, a, b):
+        return x**a * np.exp(b)
+    # Fit a straight line to the log-log plot for the healthy data
+    params_h, covariance_h = curve_fit(linear_fit, log_pars2, log_mean_coupling_healthy)
+    a_h, b_h = params_h
+    slope_h = a_h
+    intercept_h = b_h
 
-# Fit a straight line to the log-log plot for the glioma data
-params_g, covariance_g = curve_fit(linear_fit, log_pars2, log_mean_coupling_glioma)
-a_g, b_g = params_g
-slope_g = a_g
-intercept_g = b_g
+    # Fit a straight line to the log-log plot for the glioma data
+    params_g, covariance_g = curve_fit(linear_fit, log_pars2, log_mean_coupling_glioma)
+    a_g, b_g = params_g
+    slope_g = a_g
+    intercept_g = b_g
 
-# Plot the fitted lines
-plt.plot(pars2, log_fit(pars2, *params_h), '--', color='blue', label=f'Fit (Healthy): y = {slope_h:.2f}x + {intercept_h:.2f}')
-plt.plot(pars2, log_fit(pars2, *params_g), '--', color='red', label=f'Fit (Glioma): y = {slope_g:.2f}x + {intercept_g:.2f}')
-plt.xlabel('Log(excitability)')
-plt.ylabel('Log(optimal coupling)')
-plt.legend()
-plt.savefig(plot_path+file_name+'_loglog.png',dpi=300)
+    # Plot the fitted lines
+    plt.plot(pars2, log_fit(pars2, *params_h), '--', color='blue', label=f'Fit (Healthy): y = {slope_h:.2f}x + {intercept_h:.2f}')
+    plt.plot(pars2, log_fit(pars2, *params_g), '--', color='red', label=f'Fit (Glioma): y = {slope_g:.2f}x + {intercept_g:.2f}')
+    plt.xlabel('Log(excitability)')
+    plt.ylabel('Log(optimal coupling)')
+    plt.legend()
+    plt.savefig(plot_path+file_name+'_loglog.png',dpi=300)
+
+
+
+# now that we have the scaling, we can look at network metrics and nodes
+excs = [5, 15, 25, 35, 45]
+for exc in excs:
+    # pick an excitability parameter value and find corresponding coupling strengths
+    cou_h = log_fit(exc, *params_h)
+    cou_g = log_fit(exc, *params_g)
+
+
+    # find the closest grid point
+    index_exc = min(range(len(pars2)), key=lambda i: abs(pars2[i] - exc))
+    index_cou_h = min(range(len(pars1)), key=lambda i: abs(pars1[i] - cou_h))
+    index_cou_g = min(range(len(pars1)), key=lambda i: abs(pars1[i] - cou_g))
+    index_h = [index_exc, index_cou_h]
+    index_g = [index_exc, index_cou_g]
+
+
+    # iterate through the nodes, plotting node degree vs clustering/centrality
+    GW = nx.from_numpy_matrix(W)
+    node_degrees = []
+    clustering_hs = []
+    clustering_gs = []
+    centrality_hs = []
+    centrality_gs = []
+    for i in range(N):
+        # healthy
+        clustering_h = clustering[index_cou_h, index_exc, i]
+        centrality_h = centrality[index_cou_h, index_exc, i]
+        clustering_hs.append(clustering_h)
+        centrality_hs.append(centrality_h)
+
+        # toxic
+        clustering_g = clustering[index_cou_g, index_exc, i]
+        centrality_g = centrality[index_cou_g, index_exc, i]
+        clustering_gs.append(clustering_g)
+        centrality_gs.append(centrality_g)
+
+        # compute node_degre
+        node_degree = GW.degree(i, weight='weight')
+        node_degrees.append(node_degree)
+
+
+    # plotting clustering
+    plt.figure()
+    node_degrees=np.array(node_degrees);clustering_hs=np.array(clustering_hs)
+    clustering_gs=np.array(clustering_gs);centrality_hs=np.array(centrality_hs)
+    centrality_gs=np.array(centrality_gs)
+    #plt.scatter(node_degrees, clustering_hs, c='blue')
+    #plt.scatter(node_degrees, clustering_gs, c='red')
+    clust_diff = clustering_gs-clustering_hs
+    plt.scatter(node_degrees, clust_diff, c='grey')
+    plt.axhline(y=np.mean(clust_diff), color='black', linestyle='--')
+    plt.xlabel('Weighted node degree')
+    plt.ylabel('Clustering coefficient (glioma - healthy)')
+    plt.savefig(plot_path+file_name+f'_clustering_nodes_exc{exc}.png',dpi=300)
+
+    # plotting centrality
+    plt.figure()
+    #plt.scatter(node_degrees, centrality_hs, c='blue')
+    #plt.scatter(node_degrees, centrality_gs, c='red')
+    centr_diff = centrality_gs-centrality_hs
+    plt.scatter(node_degrees, centr_diff, c='grey')
+    plt.scatter(node_degrees, centr_diff, c='grey')
+    plt.axhline(y=np.mean(centr_diff), color='black', linestyle='--')
+    plt.xlabel('Weighted node degree')
+    plt.ylabel('Eigenvector centrality (glioma - healthy)')
+    plt.savefig(plot_path+file_name+f'_centrality_nodes_exc{exc}.png',dpi=300)
 
