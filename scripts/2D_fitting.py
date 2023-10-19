@@ -11,9 +11,10 @@ from jitcdde import jitcdde
 import matplotlib.pyplot as plt
 import pandas as pd
 from joblib import Parallel, delayed
-from glioma_helpers import remove_rows_and_columns, clustering_coefficient
+from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory
 import networkx as nx
 from matplotlib.ticker import LogFormatter, LogLocator
+import time
 plt.style.use('seaborn-muted')
 
 # -----------------------------------------------------------
@@ -21,17 +22,21 @@ plt.style.use('seaborn-muted')
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = False
+run = True
 craniotomy = False
 # save paths
-file_name = '750IC_50M'
-path = '../plots/2D_fitting/'
+file_name = 'test'
+plot_path = '../plots/2D_fitting/' + file_name + '/'
+simu_path = '../simulations/2D_fitting/' + file_name + '/'
 W_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
 gli_PLI_path = '../data/exp_PLI_glioma.p'
 freq_path = '../data/exp_frequencies.csv'
-DE_file = '../simulations/2D_fitting/hopf.so'
-n_jobs=100;ICN=750
+DE_file = simu_path+'hopf.so'
+create_directory(plot_path)
+create_directory(simu_path)
+n_jobs=100;ICN=1
+
 
 # read tumor file (to fit tumor region parameters)
 tumor_indss_f = '../data/patients_tumor_overlaps.csv'
@@ -45,8 +50,8 @@ tumor_inds = list(set(list(tumor_inds)))
 tumor_inds = [int(tumor_inds[k]) for k in range(len(tumor_inds))]
 
 # parameters to vary
-parmin1=0;parmax1=50;M1=50  
-parmin2=0;parmax2=50;M2=50
+parmin1=0;parmax1=50;M1=4  
+parmin2=0;parmax2=50;M2=4
 
 # ODE parameters
 kappa = 20
@@ -151,20 +156,20 @@ if run:
             return (r_healthy, r_glioma, *clustering, *centrality)
 
         # Run the computation in parallel
-        results = Parallel(n_jobs=n_jobs)(delayed(compute_single)(i, j, DE_file, n) for i in tqdm(range(M1), desc='par1 progress') for j in range(M2)) 
+        results = Parallel(n_jobs=n_jobs)(delayed(compute_single)(i, j, DE_file, n) for i in tqdm(range(M1), desc=f'Initial condition {IC} of {ICN}') for j in range(M2)) 
         # store results 
         rs[IC] = np.array(results).reshape((M1,M2,2+2*N))
 
     # save files
-    with open('../simulations/2D_fitting/'+file_name+'_rs.pl', 'wb') as f:
+    with open(simu_path+file_name+'_rs.pl', 'wb') as f:
         pickle.dump(rs, f)
-    with open('../simulations/2D_fitting/'+file_name+'_pars.pl', 'wb') as f:
+    with open(simu_path+file_name+'_pars.pl', 'wb') as f:
         pickle.dump(pars, f)
 
 # load files
-with open('../simulations/2D_fitting/'+file_name+'_rs.pl', 'rb') as f:
+with open(simu_path+file_name+'_rs.pl', 'rb') as f:
     rs = pickle.load(f)
-with open('../simulations/2D_fitting/'+file_name+'_pars.pl', 'rb') as f:
+with open(simu_path+file_name+'_pars.pl', 'rb') as f:
     pars = pickle.load(f)
 ICN, M1, M2, _ = rs.shape
 pars1, pars2 = pars
@@ -191,7 +196,7 @@ plt.imshow(rs_healthy_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars
 plt.colorbar(label='Pearson correlation')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+ file_name+'_pearson_grid_healthy.png',dpi=300)
+plt.savefig(plot_path+ file_name+'_pearson_grid_healthy.png',dpi=300)
 
 # glioma grid
 plt.figure()
@@ -200,7 +205,7 @@ plt.imshow(rs_glioma_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars1
 plt.colorbar(label='Pearson correlation')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+file_name+'_pearson_grid_glioma.png',dpi=300)
+plt.savefig(plot_path+file_name+'_pearson_grid_glioma.png',dpi=300)
 
 # clustering grid
 plt.figure()
@@ -209,7 +214,7 @@ plt.imshow(clustering_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars
 plt.colorbar(label='Mean clustering')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+file_name+'_clustering_grid.png',dpi=300)
+plt.savefig(plot_path+file_name+'_clustering_grid.png',dpi=300)
 
 # centrality grid
 plt.figure()
@@ -218,7 +223,7 @@ plt.imshow(centrality_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars
 plt.colorbar(label='Mean centrality')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+file_name+'_centrality_grid.png',dpi=300)
+plt.savefig(plot_path+file_name+'_centrality_grid.png',dpi=300)
 
 # clustering error
 plt.figure()
@@ -227,7 +232,7 @@ plt.imshow(np.abs(clustering_mean-exp_clustering), cmap='magma', extent=[pars2.m
 plt.colorbar(label='Mean clustering error')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+file_name+'_clustering_grid.png',dpi=300)
+plt.savefig(plot_path+file_name+'_clustering_grid.png',dpi=300)
 
 # centrality error
 plt.figure()
@@ -236,7 +241,7 @@ plt.imshow(np.abs(centrality_mean-exp_centrality), cmap='magma', extent=[pars2.m
 plt.colorbar(label='Mean centrality error')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
-plt.savefig(path+file_name+'_centrality_err_grid.png',dpi=300)
+plt.savefig(plot_path+file_name+'_centrality_err_grid.png',dpi=300)
 
 # plot difference in optimal coupling strength
 plt.figure()
@@ -255,7 +260,7 @@ for IC in range(ICN):
 
     # Plot different in optimal coupling
     plt.scatter(max_coupling_glioma - max_coupling_healthy, [IC for _ in range(M2)], alpha=0.5, c='grey')
-plt.savefig(path+file_name+'_optimal_coupling.png',dpi=300)
+plt.savefig(plot_path+file_name+'_optimal_coupling.png',dpi=300)
 
 # plot mean and std of all inital conditions
 plt.figure()
@@ -272,7 +277,7 @@ plt.fill_between(pars2, mean_coupling_glioma - std_coupling_glioma, mean_couplin
 # Customize the plot
 plt.xlabel('Excitability')
 plt.ylabel('Optimal coupling strength')
-plt.savefig(path+file_name+'_optimal_coupling_std.png',dpi=300)
+plt.savefig(plot_path+file_name+'_optimal_coupling_std.png',dpi=300)
 
 # remove 0 from the data due to log transformation
 pars2 = pars2[1:]
@@ -310,8 +315,5 @@ plt.plot(pars2, log_fit(pars2, *params_g), '--', color='red', label=f'Fit (Gliom
 plt.xlabel('Log(excitability)')
 plt.ylabel('Log(optimal coupling)')
 plt.legend()
-plt.savefig(path+file_name+'_loglog.png',dpi=300)
-
-# Show the plot
-plt.show()
+plt.savefig(plot_path+file_name+'_loglog.png',dpi=300)
 
