@@ -10,6 +10,18 @@ import networkx as nx
 import itertools
 
 
+
+
+def compute_eigenvector_centrality(G):
+    try:
+        centrality = nx.eigenvector_centrality(G, weight='weight', max_iter=500)
+    except nx.exception.PowerIterationFailedConvergence as e:
+        # Handle the convergence failure for this node
+        print(f"Convergence failed for node {e.args[0]}: {e.args[1]}")
+        centrality = [np.nan for _ in range(G.number_of_nodes)]  # Set centrality to NaN for non-converged nodes
+    return list(centrality.values())
+
+
 # self explanatory
 def create_directory(folder_path):
     if not os.path.exists(folder_path):
@@ -18,12 +30,32 @@ def create_directory(folder_path):
     else:
         print(f"Directory '{folder_path}' already exists.")
 
-
-
 def clustering_coefficient(adj_matrix):
-    G = nx.from_numpy_matrix(adj_matrix)
+    G = nx.from_numpy_array(adj_matrix)
     clustering_coeff = nx.clustering(G, weight="weight")
     return clustering_coeff
+
+
+def find_avg_diff(arr, interval_len):
+    # reshape the array into intervals
+    arr_intervals = arr[:len(arr)//interval_len*interval_len].reshape(-1, interval_len)
+
+    # find highest values in each nth-length interval
+    max_vals = np.max(arr_intervals, axis=1)
+
+    # find lowest values in each nth-length interval
+    min_vals = np.min(arr_intervals, axis=1)
+
+    # compute average of max values
+    avg_max_val = np.mean(max_vals)
+
+    # compute average of min values
+    avg_min_val = np.mean(min_vals)
+
+    # compute absolute difference between average max and average min
+    abs_diff = np.abs(avg_max_val - avg_min_val)
+
+    return abs_diff
 
 
 # define simpler function for parallelizing 

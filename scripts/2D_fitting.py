@@ -11,7 +11,7 @@ from jitcdde import jitcdde
 import matplotlib.pyplot as plt
 import pandas as pd
 from joblib import Parallel, delayed
-from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory
+from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory, compute_eigenvector_centrality
 import networkx as nx
 from matplotlib.ticker import LogFormatter, LogLocator
 import time
@@ -22,11 +22,13 @@ plt.style.use('seaborn-muted')
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = False
+run = True
 craniotomy = False
 loglog = True
+bandpass = True
+
 # save paths
-file_name = '750IC_50M'
+file_name = 'without_bandpass_100IC_50M'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
 simu_path = '../simulations/2D_fitting/' + file_name + '/'
 W_path = '../data/glioma_struct_conns_avg.p'
@@ -36,7 +38,7 @@ freq_path = '../data/exp_frequencies.csv'
 DE_file = simu_path+'hopf.so'
 create_directory(plot_path)
 create_directory(simu_path)
-n_jobs=100;ICN=10
+n_jobs=100;ICN=100
 
 # parameters to vary
 parmin1=0;parmax1=50;M1=50  
@@ -46,7 +48,7 @@ parmin2=0;parmax2=50;M2=50
 kappa = 20
 decay = sym.var('decay')
 h = sym.var('h')  
-hontrol_pars = [h, decay]
+control_pars = [h, decay]
 
 # solver settings
 t_span = (0,14.5)
@@ -72,7 +74,7 @@ if threshold:
 if normalize:
     exp_PLI = exp_PLI / np.amax(exp_PLI)
     gli_PLI = gli_PLI / np.amax(gli_PLI)
-G_exp = nx.from_numpy_matrix(gli_PLI)
+G_exp = nx.from_numpy_array(gli_PLI)
 exp_clustering = np.mean(list(nx.clustering(G_exp, weight='weight').values()))
 exp_centrality = np.mean(list(nx.eigenvector_centrality(G_exp, weight='weight').values()))
 
@@ -135,9 +137,12 @@ if run:
 
             # bandpass and compute PLI
             fs = 1 / (t[1] - t[0])
-            x = butter_bandpass_filter(x, band[0], band[1], fs)
+            if bandpass:
+                x = butter_bandpass_filter(x, band[0], band[1], fs)
             sim_PLI = PLI(x)
-            sim_PLI = sim_PLI / np.amax(sim_PLI)
+            if np.amax(sim_PLI) > 10**-6:
+                sim_PLI = sim_PLI / np.amax(sim_PLI)
+            del DE, sol, x, y, t
 
             # remove tumor regions if asked
             if craniotomy:  
@@ -148,10 +153,10 @@ if run:
             r_glioma, _ = pearsonr(sim_PLI.flatten(), gli_PLI.flatten())
 
             # compute clustering coefficient
-            G = nx.from_numpy_matrix(sim_PLI)
+            G = nx.from_numpy_array(sim_PLI)
             
             clustering = list(nx.clustering(G, weight='weight').values())
-            centrality = list(nx.eigenvector_centrality(G, weight='weight').values())
+            centrality = compute_eigenvector_centrality(G)
 
             return (r_healthy, r_glioma, *clustering, *centrality)
 
@@ -337,7 +342,7 @@ for exc in excs:
 
 
     # iterate through the nodes, plotting node degree vs clustering/centrality
-    GW = nx.from_numpy_matrix(W)
+    GW = nx.from_numpy_array(W)
     node_degrees = []
     clustering_hs = []
     clustering_gs = []
