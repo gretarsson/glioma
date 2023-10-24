@@ -11,11 +11,12 @@ from jitcdde import jitcdde
 import matplotlib.pyplot as plt
 import pandas as pd
 from joblib import Parallel, delayed
-from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory, compute_eigenvector_centrality
+from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory, compute_eigenvector_centrality, amplitude_matrix
 import networkx as nx
 from matplotlib.ticker import LogFormatter, LogLocator
 import time
 plt.style.use('seaborn-muted')
+plt.rcParams['figure.max_open_warning'] = 50  
 
 # -----------------------------------------------------------
 # in this script, we compute the pearson correlation
@@ -28,21 +29,23 @@ loglog = True
 bandpass = True
 
 # save paths
-file_name = 'without_bandpass_100IC_50M'
+n_jobs=100;ICN=100;M=100
+file_name = f'{ICN}IC_{M}M'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
 simu_path = '../simulations/2D_fitting/' + file_name + '/'
 W_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
 gli_PLI_path = '../data/exp_PLI_glioma.p'
+exp_reg_path = '../data/exp_ampl_matrix.p'
+gli_reg_path = '../data/gli_ampl_matrix.p'
 freq_path = '../data/exp_frequencies.csv'
 DE_file = simu_path+'hopf.so'
 create_directory(plot_path)
 create_directory(simu_path)
-n_jobs=100;ICN=100
 
 # parameters to vary
-parmin1=0;parmax1=50;M1=50  
-parmin2=0;parmax2=50;M2=50
+parmin1=0;parmax1=50;M1=M  
+parmin2=0;parmax2=50;M2=M
 
 # ODE parameters
 kappa = 20
@@ -60,13 +63,15 @@ rtol = 10**-3
 # PLI settings
 band = [8,12]
 threshold = 0.972 # 0.972
-normalize = True
+normalize = False  # True
 aspect = 'auto'
 
 # load experimental PLI
 exp_PLIs = pickle.load( open( exp_PLI_path, "rb" ) )
-exp_PLI = np.mean(exp_PLIs, axis=0)
 gli_PLIs = pickle.load( open( gli_PLI_path, "rb" ) )
+exp_reg = pickle.load( open( exp_reg_path, "rb" ) )
+gli_reg = pickle.load( open( gli_reg_path, "rb" ) )
+exp_PLI = np.mean(exp_PLIs, axis=0)
 gli_PLI = np.mean(gli_PLIs, axis=0)
 if threshold:
     exp_PLI = threshold_matrix(exp_PLI, threshold)
@@ -74,7 +79,7 @@ if threshold:
 if normalize:
     exp_PLI = exp_PLI / np.amax(exp_PLI)
     gli_PLI = gli_PLI / np.amax(gli_PLI)
-G_exp = nx.from_numpy_array(gli_PLI)
+G_exp = nx.from_numpy_array(exp_PLI)
 exp_clustering = np.mean(list(nx.clustering(G_exp, weight='weight').values()))
 exp_centrality = np.mean(list(nx.eigenvector_centrality(G_exp, weight='weight').values()))
 
@@ -100,7 +105,7 @@ w = freqs[0:N] * 2*pi
 pars1 = np.linspace(parmin1,parmax1,M1)
 pars2 = np.linspace(parmin2,parmax2,M2)
 pars = [pars1, pars2]
-rs = np.zeros((ICN,M1,M2,2+2*N))
+rs = np.zeros((ICN,M1,M2,2+2*N+2))
 
 if run:
     # compile ODE
@@ -140,9 +145,11 @@ if run:
             if bandpass:
                 x = butter_bandpass_filter(x, band[0], band[1], fs)
             sim_PLI = PLI(x)
+            sim_reg = amplitude_matrix(x,2*fs)
             if np.amax(sim_PLI) > 10**-6:
                 sim_PLI = sim_PLI / np.amax(sim_PLI)
-            del DE, sol, x, y, t
+            if np.amax(sim_reg) > 10**-6:
+                sim_reg = sim_reg / np.amax(np.abs(sim_reg))
 
             # remove tumor regions if asked
             if craniotomy:  
@@ -151,6 +158,8 @@ if run:
             # compute pearson correlation 
             r_healthy, _ = pearsonr(sim_PLI.flatten(), exp_PLI.flatten())
             r_glioma, _ = pearsonr(sim_PLI.flatten(), gli_PLI.flatten())
+            reg_healthy, _ = pearsonr(sim_reg.flatten(), exp_reg.flatten())
+            reg_glioma, _ = pearsonr(sim_reg.flatten(), gli_reg.flatten())
 
             # compute clustering coefficient
             G = nx.from_numpy_array(sim_PLI)
@@ -158,12 +167,12 @@ if run:
             clustering = list(nx.clustering(G, weight='weight').values())
             centrality = compute_eigenvector_centrality(G)
 
-            return (r_healthy, r_glioma, *clustering, *centrality)
+            return (r_healthy, r_glioma, *clustering, *centrality, reg_healthy, reg_glioma)
 
         # Run the computation in parallel
         results = Parallel(n_jobs=n_jobs)(delayed(compute_single)(i, j, DE_file, n) for i in tqdm(range(M1), desc=f'Initial condition {IC+1} of {ICN}') for j in range(M2)) 
         # store results 
-        rs[IC] = np.array(results).reshape((M1,M2,2+2*N))
+        rs[IC] = np.array(results).reshape((M1,M2,2+2*N+2))
 
     # save files
     with open(simu_path+file_name+'_rs.pl', 'wb') as f:
@@ -182,11 +191,15 @@ rs_healthy = rs[:, :, :, 0].reshape(ICN, M1, M2)
 rs_glioma =  rs[:, :, :, 1].reshape(ICN, M1, M2)
 clustering =  rs[:, :, :, 2:2+N].reshape(ICN, M1, M2, N)
 centrality =  rs[:, :, :, 2+N:2+2*N].reshape(ICN, M1, M2, N)
+reg_healthy = rs[:, :, :, 2+2*N].reshape(ICN, M1, M2)
+reg_glioma =  rs[:, :, :, 2+2*N+1].reshape(ICN, M1, M2)
 
 # PLOT THE RESULTS
 # Plot the healthy 2D grid using imshow
 rs_healthy_mean = np.mean(rs_healthy,axis=0)
 rs_glioma_mean = np.mean(rs_glioma,axis=0)
+reg_healthy_mean = np.mean(reg_healthy,axis=0)
+reg_glioma_mean = np.mean(reg_glioma,axis=0)
 
 # averages of network metrics over initial conditions and nodes
 clustering = np.mean(clustering,axis=0)
@@ -211,6 +224,24 @@ plt.colorbar(label='Pearson correlation')
 plt.xlabel('Excitability')
 plt.ylabel('Coupling Strength')
 plt.savefig(plot_path+file_name+'_pearson_grid_glioma.png',dpi=300)
+
+# healthy regularization grid 
+plt.figure()
+plt.imshow(reg_healthy_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars1.min(), pars1.max()],
+           interpolation='nearest', origin='lower', aspect=aspect)
+plt.colorbar(label='Regularization correlation')
+plt.xlabel('Excitability')
+plt.ylabel('Coupling Strength')
+plt.savefig(plot_path+ file_name+'_regularization_grid_healthy.png',dpi=300)
+
+# glioma regularization grid
+plt.figure()
+plt.imshow(reg_glioma_mean, cmap='magma', extent=[pars2.min(), pars2.max(), pars1.min(), pars1.max()],
+           interpolation='nearest', origin='lower', aspect=aspect)
+plt.colorbar(label='Regularization correlation')
+plt.xlabel('Excitability')
+plt.ylabel('Coupling Strength')
+plt.savefig(plot_path+file_name+'_regularization_grid_glioma.png',dpi=300)
 
 # clustering grid
 plt.figure()

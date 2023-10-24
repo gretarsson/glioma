@@ -12,6 +12,55 @@ import itertools
 
 
 
+def find_avg_diff(arr, interval_len): # reshape the array into intervals
+    # needs to be integer
+    interval_len = int(interval_len)
+
+    # Calculate the size of the array after truncating any excess elements
+    arr_size = arr.size
+    truncated_size = int(arr_size // interval_len * interval_len)
+
+    # Slice the array and reshape into intervals
+    arr_intervals = arr[:truncated_size].reshape(-1, interval_len)
+
+    # find highest values in each nth-length interval
+    max_vals = np.max(arr_intervals, axis=1)
+
+    # find lowest values in each nth-length interval
+    min_vals = np.min(arr_intervals, axis=1)
+
+    # compute average of max values
+    avg_max_val = np.mean(max_vals)
+
+    # compute average of min values
+    avg_min_val = np.mean(min_vals)
+
+    # compute absolute difference between average max and average min
+    abs_diff = np.abs(avg_max_val - avg_min_val)
+
+    return abs_diff
+
+
+def amplitude_matrix(arr, interval_len):
+    # intialize
+    N, _ = arr.shape
+    ampl_vector = np.zeros((N,))
+    ampl_matrix = np.zeros((N,N))
+
+    # store average amplitude in vector
+    for i in range(N):
+        xi = arr[i,:]
+        ampl = find_avg_diff(xi, interval_len)
+        ampl_vector[i] = ampl
+
+    # create matrix
+    ampl_cols = np.tile(ampl_vector, (N, 1))
+    ampl_matrix = ampl_cols.T - ampl_cols
+
+    # we're done
+    return ampl_matrix  
+        
+
 def compute_eigenvector_centrality(G):
     try:
         centrality = nx.eigenvector_centrality(G, weight='weight', max_iter=500)
@@ -36,26 +85,6 @@ def clustering_coefficient(adj_matrix):
     return clustering_coeff
 
 
-def find_avg_diff(arr, interval_len):
-    # reshape the array into intervals
-    arr_intervals = arr[:len(arr)//interval_len*interval_len].reshape(-1, interval_len)
-
-    # find highest values in each nth-length interval
-    max_vals = np.max(arr_intervals, axis=1)
-
-    # find lowest values in each nth-length interval
-    min_vals = np.min(arr_intervals, axis=1)
-
-    # compute average of max values
-    avg_max_val = np.mean(max_vals)
-
-    # compute average of min values
-    avg_min_val = np.mean(min_vals)
-
-    # compute absolute difference between average max and average min
-    abs_diff = np.abs(avg_max_val - avg_min_val)
-
-    return abs_diff
 
 
 # define simpler function for parallelizing 

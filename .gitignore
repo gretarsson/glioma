@@ -1,2 +1,4 @@
 scripts/solve_brain/__pycache__/*
 simulations/2D_fitting/*
+data/meg_glioma/*
+data/meg_healthy/*
