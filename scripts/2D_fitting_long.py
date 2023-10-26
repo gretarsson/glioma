@@ -24,7 +24,7 @@ plt.rcParams['figure.max_open_warning'] = 50
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = True
+run = False
 craniotomy = False
 loglog = True
 bandpass = True
@@ -264,18 +264,26 @@ if loglog:
     plt.ylabel('Optimal coupling strength')
     plt.savefig(plot_path+file_name+'_optimal_coupling_std.png',dpi=300)
 
+    # loglog plot
+    plt.figure(figsize=(8, 6)) 
+    plt.loglog(pars2[1:], mean_coupling_healthy[1:], color='blue')
+    plt.loglog(pars2[1:], mean_coupling_glioma[1:], color='red')
+
     # remove 0 from the data due to log transformation
-    pars2 = pars2[1:]
-    mean_coupling_healthy = mean_coupling_healthy[1:]
-    mean_coupling_glioma = mean_coupling_glioma[1:]
+    inds = np.where(pars2>1)
+    pars2sub = pars2[inds]
+    mean_coupling_healthy = mean_coupling_healthy[inds]
+    mean_coupling_glioma = mean_coupling_glioma[inds]
+    #mean_coupling_healthy = mean_coupling_healthy[1:]
+    #mean_coupling_glioma = mean_coupling_glioma[1:]
     # Apply log transformations to the data
-    log_pars2 = np.log(pars2)
+    log_pars2 = np.log(pars2sub)
     log_mean_coupling_healthy = np.log(mean_coupling_healthy)
     log_mean_coupling_glioma = np.log(mean_coupling_glioma)
 
-    plt.figure(figsize=(8, 6)) 
-    plt.loglog(pars2, mean_coupling_healthy, color='blue')
-    plt.loglog(pars2, mean_coupling_glioma, color='red')
+    #plt.figure(figsize=(8, 6)) 
+    #plt.loglog(pars2, mean_coupling_healthy, color='blue')
+    #plt.loglog(pars2, mean_coupling_glioma, color='red')
 
     # Define a linear fitting function
     def linear_fit(x, a, b):
@@ -295,8 +303,8 @@ if loglog:
     intercept_g = b_g
 
     # Plot the fitted lines
-    plt.plot(pars2, log_fit(pars2, *params_h), '--', color='blue', label=f'Fit (Healthy): y = {slope_h:.2f}x + {intercept_h:.2f}')
-    plt.plot(pars2, log_fit(pars2, *params_g), '--', color='red', label=f'Fit (Glioma): y = {slope_g:.2f}x + {intercept_g:.2f}')
+    plt.plot(pars2[1:], log_fit(pars2[1:], *params_h), '--', color='blue', label=f'Fit (Healthy): y = {slope_h:.2f}x + {intercept_h:.2f}')
+    plt.plot(pars2[1:], log_fit(pars2[1:], *params_g), '--', color='red', label=f'Fit (Glioma): y = {slope_g:.2f}x + {intercept_g:.2f}')
     plt.xlabel('Log(excitability)')
     plt.ylabel('Log(optimal coupling)')
     plt.legend()

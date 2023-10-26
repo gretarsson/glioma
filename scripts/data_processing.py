@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from scipy import signal
 from pprint import pprint
-from solve_brain.brain_analysis import PLI, compute_phase_coherence, butter_bandpass_filter
+from solve_brain.brain_analysis import PLI, compute_phase_coherence, butter_bandpass_filter, PLI_from_complex, amplitude_coupling_from_complex
 import matplotlib.pyplot as plt
 
 
@@ -15,15 +15,14 @@ import matplotlib.pyplot as plt
 
 # settings
 fs = 1250  # sampling frequency
-filename = 'test'
-save_F = '../data/exp_PLI_'+filename+'.p'  # where to save PLI
-save_ampls = '../data/gli_ampls_'+filename+'.p'  # where to save amplitude
-save_ampl_matrix = '../data/gli_ampl_matrix_'+filename+'.p'  
+filename = 'test_healthy'
+save_pli = '../data/'+filename+'_PLI_.p'  # where to save PLI
+save_ampl = '../data/'+filename+'_ampl.p'  
 band = [8, 12]
 
 # find path names for each subject's folder
-rootdir = '../data/meg_glioma/'
-#rootdir = '../data/meg_healthy/'
+#rootdir = '../data/meg_glioma/'
+rootdir = '../data/meg_healthy/'
 subject_folders = []
 subject_epochs = []
 find_N = False  # set to true to use all ROIs 
@@ -50,9 +49,10 @@ print()
 # initialize peaks with NaNs (#subjects, max#epochs)
 n_subjects = len(subject_folders)
 len_epochs = [len(subject_epoch) for subject_epoch in subject_epochs]
-F = np.empty((n_subjects,N,N))
-F[:] = np.NaN
-ampls = np.empty((n_subjects,N))
+pli = np.empty((n_subjects,N,N))
+ampl = np.empty((n_subjects,N,N))
+pli[:] = np.NaN
+ampl[:] = np.NaN
 
 # iterate through each subject
 for s, subject_folder in enumerate(subject_folders):
@@ -60,8 +60,8 @@ for s, subject_folder in enumerate(subject_folders):
     print(f'Now at subject {s+1} of {n_subjects}')
 
     # store subject's epochs momentarily
-    F_s = np.empty((len_epochs[s],N,N))
-    amplss = np.empty((len_epochs[s],N))
+    pli_s = np.empty((len_epochs[s],N,N))
+    ampl_s = np.empty((len_epochs[s],N,N))
 
     # iterate through each epoch
     for epi, epoch_file in enumerate(subject_epochs[s]):
@@ -84,33 +84,24 @@ for s, subject_folder in enumerate(subject_folders):
         # bandpass signal (all ROIs)
         data_passed = butter_bandpass_filter(data, band[0], band[1], fs)
 
-        # find amplitude
-        sec_int = 2
-        for i in range(N):
-            datan = np.array(data_passed[i,:])
-            amplss[epi,i] = find_avg_diff(datan,sec_int*fs)
+        # hilbert transform and FC metrics
+        data_hilbert = signal.hilbert(data_passed)
+        pli_s[epi] = PLI_from_complex(data_hilbert)
+        ampl_s[epi] = amplitude_coupling_from_complex(data_hilbert)
 
-        # PLI
-        F_s[epi] = PLI(data_passed)
 
     # average across epochs
-    F[s,:,:] = np.mean(F_s, axis=0)
-    ampls[s,:] = np.mean(amplss,axis=0)
+    pli[s,:,:] = np.mean(pli_s, axis=0)
+    ampl[s,:,:] = np.mean(ampl_s, axis=0)
 
-# save epoch-averaged PLI connectomes with pickle
-pickle.dump(F, open( save_F, "wb" ))
-
-# compute average amplitude for each roi and the amplitude matrix
-ampls = np.mean(ampls,axis=0) 
-ampls = ampls / np.amax(np.abs(ampls))
-pickle.dump(ampls, open( save_ampls, "wb" ))
-ampl_matrix = np.array([[ampls[i] - ampls[j] for j in range(N)] for i in range(N)])
-pickle.dump(ampl_matrix, open( save_ampl_matrix, "wb" ))
+# save epoch-averaged functional connectomes with pickle
+pickle.dump(pli, open( save_pli, "wb" ))
+pickle.dump(ampl, open( save_ampl, "wb" ))
 
 # plot the average PLI and average amplitude matrix
 plt.figure()
-plt.imshow(np.mean(F,axis=0))
+plt.imshow(np.mean(pli,axis=0))
 plt.figure()
-plt.imshow(ampl_matrix)
+plt.imshow(np.mean(ampl,axis=0))
 plt.show()
 
