@@ -17,7 +17,7 @@ from glioma_helpers import create_directory, median_threshold
 # settings
 run = False
 fs = 1250  # sampling frequency
-filename = 'test_healthy'
+filename = 'post_glioma'
 save_pli = '../data/'+filename+'_PLI.p'  # where to save PLI
 save_ampl = '../data/'+filename+'_ampl.p'  
 band = [8, 12]
@@ -105,6 +105,7 @@ if run:
     pickle.dump(ampl, open( save_ampl, "wb" ))
 
 
+
 # load matrices for post-processing and plotting
 pli  = pickle.load( open( save_pli, "rb" ) )
 ampl = pickle.load( open( save_ampl, "rb" ) )
@@ -112,12 +113,14 @@ ampl = pickle.load( open( save_ampl, "rb" ) )
 # plot the average PLI and average amplitude matrix
 pli = np.mean(pli,axis=0)
 pli = median_threshold(pli)
+ampl = np.mean(ampl,axis=0)
+ampl = median_threshold(ampl)
 plt.figure()
 plt.imshow(pli)
 plt.colorbar()
 plt.savefig(plot_path+filename+'_pli.pdf', dpi=300)
 plt.figure()
-plt.imshow(np.mean(ampl,axis=0))
+plt.imshow(ampl)
 plt.colorbar()
 plt.savefig(plot_path+filename+'_ampl.pdf', dpi=300)
 plt.show()

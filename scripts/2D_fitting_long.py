@@ -12,7 +12,7 @@ from jitcdde import jitcdde
 import matplotlib.pyplot as plt
 import pandas as pd
 from joblib import Parallel, delayed
-from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory, compute_eigenvector_centrality, amplitude_matrix
+from glioma_helpers import remove_rows_and_columns, clustering_coefficient, create_directory, compute_eigenvector_centrality, amplitude_matrix, median_threshold
 import networkx as nx
 from matplotlib.ticker import LogFormatter, LogLocator
 import time
@@ -31,7 +31,7 @@ loglog = True
 bandpass = True
 
 # save paths
-n_jobs=70;ICN=100;M=100
+n_jobs=10;ICN=1;M=100
 file_name = f'ICN{ICN}_M{M}_coupling'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
 simu_path = '../simulations/2D_fitting/' + file_name + '/'
@@ -64,7 +64,8 @@ rtol = 10**-3
 
 # PLI settings
 band = [8,12]
-threshold = 0.972 # 0.972
+threshold = 0 # 0.972
+threshold_median = True
 normalize = False  # True
 aspect = 'auto'
 
@@ -80,6 +81,11 @@ gli_reg = np.mean(gli_regs, axis=0)
 if threshold:
     exp_PLI = threshold_matrix(exp_PLI, threshold)
     gli_PLI = threshold_matrix(gli_PLI, threshold)
+elif threshold_median:
+    exp_PLI = median_threshold(exp_PLI)
+    gli_PLI = median_threshold(gli_PLI)
+    exp_reg = median_threshold(exp_reg)
+    gli_reg = median_threshold(gli_reg)
 if normalize:
     exp_PLI = exp_PLI / np.amax(exp_PLI)
     gli_PLI = gli_PLI / np.amax(gli_PLI)
