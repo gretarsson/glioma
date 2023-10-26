@@ -10,6 +10,10 @@ import networkx as nx
 import itertools
 
 
+def median_threshold(array):
+    array = array - np.median(array)
+    array[array < 0] = 0
+    return array
 
 
 def find_avg_diff(arr, interval_len): # reshape the array into intervals
