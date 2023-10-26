@@ -1,9 +1,10 @@
 import symengine as sym
 import numpy as np
 from solve_brain.brain_models import compile_hopf, solve_dde, threshold_matrix, random_initial
-from solve_brain.brain_analysis import PLI, butter_bandpass_filter, compute_phase_coherence, PLI_from_complex
+from solve_brain.brain_analysis import PLI, butter_bandpass_filter, compute_phase_coherence, PLI_from_complex, amplitude_coupling_from_complex
 from scipy.stats import pearsonr
 from scipy.optimize import curve_fit
+from scipy.signal import hilbert
 from tqdm import tqdm
 import pickle
 from math import pi
@@ -24,21 +25,21 @@ plt.rcParams['figure.max_open_warning'] = 50
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = False
+run = True
 craniotomy = False
 loglog = True
 bandpass = True
 
 # save paths
-n_jobs=70;ICN=1000;M=100
-file_name = f'ICN{ICN}_M{M}_long'
+n_jobs=70;ICN=100;M=100
+file_name = f'ICN{ICN}_M{M}_coupling'
 plot_path = '../plots/2D_fitting/' + file_name + '/'
 simu_path = '../simulations/2D_fitting/' + file_name + '/'
 W_path = '../data/glioma_struct_conns_avg.p'
 exp_PLI_path = '../data/exp_PLI_updated.p'
 gli_PLI_path = '../data/exp_PLI_glioma.p'
-exp_reg_path = '../data/exp_ampl_matrix.p'
-gli_reg_path = '../data/gli_ampl_matrix.p'
+exp_reg_path = '../data/test_healthy_ampl.p'
+gli_reg_path = '../data/test_glioma_ampl.p'
 freq_path = '../data/exp_frequencies.csv'
 DE_file = simu_path+'hopf.so'
 create_directory(plot_path)
@@ -70,16 +71,20 @@ aspect = 'auto'
 # load experimental PLI
 exp_PLIs = pickle.load( open( exp_PLI_path, "rb" ) )
 gli_PLIs = pickle.load( open( gli_PLI_path, "rb" ) )
-exp_reg = pickle.load( open( exp_reg_path, "rb" ) )
-gli_reg = pickle.load( open( gli_reg_path, "rb" ) )
+exp_regs = pickle.load( open( exp_reg_path, "rb" ) )
+gli_regs = pickle.load( open( gli_reg_path, "rb" ) )
 exp_PLI = np.mean(exp_PLIs, axis=0)
 gli_PLI = np.mean(gli_PLIs, axis=0)
+exp_reg = np.mean(exp_regs, axis=0)
+gli_reg = np.mean(gli_regs, axis=0)
 if threshold:
     exp_PLI = threshold_matrix(exp_PLI, threshold)
     gli_PLI = threshold_matrix(gli_PLI, threshold)
 if normalize:
     exp_PLI = exp_PLI / np.amax(exp_PLI)
     gli_PLI = gli_PLI / np.amax(gli_PLI)
+    exp_reg = exp_reg / np.amax(exp_reg)
+    gli_reg = gli_reg / np.amax(gli_reg)
 
 # read tumor file (to fit tumor region parameters)
 tumor_indss_f = '../data/patients_tumor_overlaps.csv'
@@ -142,16 +147,14 @@ if run:
             fs = 1 / (t[1] - t[0])
             if bandpass:
                 x = butter_bandpass_filter(x, band[0], band[1], fs)
-            sim_PLI = PLI(x)
-            sim_reg = amplitude_matrix(x,2*fs)
-            if np.amax(sim_PLI) > 10**-6:
-                sim_PLI = sim_PLI / np.amax(sim_PLI)
-            if np.amax(sim_reg) > 10**-6:
-                sim_reg = sim_reg / np.amax(np.abs(sim_reg))
+            xhil = hilbert(x)
+            sim_PLI = PLI_from_complex(xhil)
+            sim_reg = amplitude_coupling_from_complex(xhil)
 
             # remove tumor regions if asked
             if craniotomy:  
                 sim_PLI = remove_rows_and_columns(sim_PLI, tumor_inds)
+                sim_reg = remove_rows_and_columns(sim_reg, tumor_inds)
 
             # compute pearson correlation 
             r_healthy, _ = pearsonr(sim_PLI.flatten(), exp_PLI.flatten())
