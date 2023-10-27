@@ -23,7 +23,7 @@ plt.rcParams['figure.max_open_warning'] = 50
 # between simulated and experimental FC along 1 parameter
 # -----------------------------------------------------------
 np.random.seed(5)
-run = True
+run = False
 craniotomy = False
 loglog = True
 bandpass = True
@@ -408,8 +408,8 @@ for exc in excs:
     plt.scatter(node_degrees, clust_diff, c='grey')
     plt.axhline(y=np.mean(clust_diff), color='black', linestyle='--')
     plt.xlabel('Weighted node degree')
-    plt.ylabel('Clustering coefficient (glioma - healthy)')
-    plt.savefig(plot_path+file_name+f'_clustering_nodes_exc{exc}.png',dpi=300)
+    plt.ylabel('Clustering coefficient cohort difference')
+    plt.savefig(plot_path+file_name+f'_clustering_nodes_exc{exc}.png',dpi=300, bbox_inches='tight')
 
     # plotting centrality
     plt.figure()
@@ -420,6 +420,6 @@ for exc in excs:
     plt.scatter(node_degrees, centr_diff, c='grey')
     plt.axhline(y=np.mean(centr_diff), color='black', linestyle='--')
     plt.xlabel('Weighted node degree')
-    plt.ylabel('Eigenvector centrality (glioma - healthy)')
-    plt.savefig(plot_path+file_name+f'_centrality_nodes_exc{exc}.png',dpi=300)
+    plt.ylabel('Eigenvector centrality cohort difference')
+    plt.savefig(plot_path+file_name+f'_centrality_nodes_exc{exc}.png',dpi=300, bbox_inches='tight')
 
